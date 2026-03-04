@@ -2,325 +2,420 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Devices Tycoon Pro - Engine</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Devices Tycoon Ultimate</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;800&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
-
         :root {
-            --ui-blue: #0084ff;
-            --ui-bg: rgba(10, 20, 35, 0.9);
-            --accent: #00f7ff;
-            --danger: #ff4b4b;
-            --success: #00e676;
-            --panel-border: 1px solid rgba(0, 132, 255, 0.3);
+            --primary: #00a2ff;
+            --secondary: #0051ff;
+            --accent: #00fff2;
+            --bg-deep: #05080c;
+            --panel-bg: rgba(13, 20, 32, 0.95);
+            --border-light: rgba(255, 255, 255, 0.1);
+            --success: #00ff88;
+            --warning: #ffcc00;
+            --danger: #ff3e3e;
+            --glass: rgba(255, 255, 255, 0.03);
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+        * {
+            margin: 0; padding: 0; box-sizing: border-box;
+            font-family: 'Montserrat', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
 
         body {
-            background-color: #050a10;
-            color: white;
-            font-family: 'Rajdhani', sans-serif;
+            background-color: var(--bg-deep);
+            color: #ffffff;
             overflow: hidden;
-            height: 100vh;
+            width: 100vw; height: 100vh;
         }
 
-        /* --- INTERFAZ SUPERIOR (STATS) --- */
-        #top-bar {
-            position: absolute; top: 0; width: 100%; height: 45px;
-            background: linear-gradient(to bottom, #162a44, #0a1423);
+        /* --- SISTEMA DE HUD (TOP BAR) --- */
+        #hud-top {
+            position: absolute; top: 0; width: 100%; height: 60px;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
             display: flex; align-items: center; justify-content: space-between;
-            padding: 0 20px; z-index: 100; border-bottom: 2px solid var(--ui-blue);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            padding: 0 25px; z-index: 1000; border-bottom: 1px solid var(--border-light);
+            backdrop-filter: blur(5px);
         }
 
-        .stat-group { display: flex; align-items: center; gap: 20px; }
-        .stat-item {
-            display: flex; align-items: center; gap: 8px;
-            background: rgba(255,255,255,0.05);
-            padding: 4px 12px; border-radius: 4px;
-            border-left: 2px solid var(--accent);
-        }
-        .stat-item span { font-family: 'Orbitron', sans-serif; font-size: 14px; color: var(--accent); }
-        .stat-label { font-size: 12px; color: #aaa; text-transform: uppercase; }
-
-        /* --- MODO DISEÑO (BLUEPRINT) --- */
-        #blueprint-grid {
-            position: absolute; width: 100%; height: 100%;
-            background-image: 
-                linear-gradient(rgba(0, 132, 255, 0.1) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(0, 132, 255, 0.1) 1px, transparent 1px);
-            background-size: 50px 50px;
-            pointer-events: none; opacity: 0.5; z-index: 0;
+        .hud-group { display: flex; align-items: center; gap: 30px; }
+        
+        .stat-card {
+            display: flex; flex-direction: column;
+            border-left: 3px solid var(--primary); padding-left: 10px;
         }
 
-        /* --- PANELES LATERALES --- */
-        .side-panel {
-            position: absolute; right: 20px; top: 60px; bottom: 90px;
-            width: 320px; background: var(--ui-bg);
-            border: var(--panel-border); border-radius: 8px;
-            backdrop-filter: blur(10px); z-index: 50;
-            display: flex; flex-direction: column; padding: 15px;
-            box-shadow: -10px 0 30px rgba(0,0,0,0.5);
+        .stat-val { 
+            font-size: 18px; font-weight: 800; color: #fff; 
+            text-shadow: 0 0 10px rgba(0,162,255,0.5);
+        }
+
+        .stat-label { font-size: 10px; text-transform: uppercase; color: var(--primary); letter-spacing: 1px; }
+
+        /* --- CONTENEDOR PRINCIPAL 3D --- */
+        #world-container {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 1; cursor: grab;
+        }
+
+        #world-container:active { cursor: grabbing; }
+
+        /* --- NAVEGACIÓN LATERAL --- */
+        #side-nav {
+            position: absolute; left: 15px; top: 50%; transform: translateY(-50%);
+            display: flex; flex-direction: column; gap: 12px; z-index: 900;
+        }
+
+        .nav-icon {
+            width: 55px; height: 55px; background: var(--panel-bg);
+            border: 1px solid var(--border-light); border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            font-size: 24px; position: relative;
+        }
+
+        .nav-icon:hover { 
+            background: var(--primary); border-color: var(--accent);
+            transform: scale(1.1) translateX(5px);
+            box-shadow: 0 0 20px rgba(0, 162, 255, 0.4);
+        }
+
+        .nav-icon.active {
+            background: var(--secondary); border-color: var(--accent);
+            box-shadow: inset 0 0 10px rgba(255,255,255,0.2);
+        }
+
+        /* --- PANELES DE GESTIÓN --- */
+        .window-panel {
+            position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+            width: 90%; max-width: 1000px; height: 80vh;
+            background: var(--panel-bg); border: 1px solid var(--border-light);
+            border-radius: 24px; z-index: 2000; display: none;
+            flex-direction: column; overflow: hidden;
+            box-shadow: 0 50px 100px rgba(0,0,0,0.8);
+            backdrop-filter: blur(20px);
         }
 
         .panel-header {
-            font-family: 'Orbitron', sans-serif; font-size: 18px;
-            color: var(--accent); margin-bottom: 15px;
-            display: flex; justify-content: space-between;
+            padding: 25px; display: flex; justify-content: space-between;
+            align-items: center; border-bottom: 1px solid var(--border-light);
         }
 
-        /* --- CONTROLES DE DISEÑO --- */
-        .control-row { margin-bottom: 15px; }
-        .control-row label { display: block; font-size: 12px; color: #888; margin-bottom: 5px; }
-        .value-display { float: right; color: white; font-weight: bold; }
+        .panel-content { 
+            flex: 1; padding: 30px; overflow-y: auto; 
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
 
-        input[type=range] {
-            -webkit-appearance: none; width: 100%; background: transparent;
+        /* --- SISTEMA DE TABS --- */
+        .tab-bar {
+            display: flex; background: rgba(0,0,0,0.3); padding: 5px;
+            border-radius: 12px; margin: 0 25px 20px 25px; gap: 10px;
         }
-        input[type=range]::-webkit-slider-runnable-track {
-            width: 100%; height: 6px; background: #1a3a5a; border-radius: 3px;
+
+        .tab-btn {
+            flex: 1; padding: 12px; border: none; background: transparent;
+            color: #777; font-weight: 600; cursor: pointer; border-radius: 8px;
+            transition: 0.2s;
         }
+
+        .tab-btn.active { background: var(--primary); color: white; }
+
+        /* --- CARDS DE PRODUCTO/EMPLEADO --- */
+        .card-item {
+            background: var(--glass); border: 1px solid var(--border-light);
+            border-radius: 16px; padding: 20px; transition: 0.3s;
+            display: flex; flex-direction: column; gap: 15px;
+        }
+
+        .card-item:hover { border-color: var(--primary); background: rgba(0,162,255,0.05); }
+
+        .card-title { font-size: 18px; font-weight: 700; color: var(--accent); }
+
+        .card-stat { display: flex; justify-content: space-between; font-size: 13px; color: #aaa; }
+        .card-stat b { color: #fff; }
+
+        /* --- LOG DE NOTIFICACIONES --- */
+        #notification-center {
+            position: absolute; right: 20px; top: 75px; width: 300px;
+            display: flex; flex-direction: column; gap: 10px; z-index: 1000;
+        }
+
+        .toast {
+            background: var(--panel-bg); border-left: 4px solid var(--primary);
+            padding: 15px; border-radius: 8px; font-size: 13px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            animation: slideInRight 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+
+        @keyframes slideInRight {
+            from { transform: translateX(120%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* --- EDITOR DE DISEÑO (DERECHA) --- */
+        #design-sidebar {
+            position: absolute; right: 15px; top: 70px; bottom: 85px;
+            width: 320px; background: var(--panel-bg);
+            border-radius: 20px; border: 1px solid var(--border-light);
+            padding: 20px; display: none; flex-direction: column; gap: 15px;
+            z-index: 500; backdrop-filter: blur(10px);
+        }
+
+        .control-box { display: flex; flex-direction: column; gap: 8px; }
+        .control-box label { font-size: 11px; color: #888; font-weight: 600; text-transform: uppercase; }
+
+        input[type=range] { -webkit-appearance: none; width: 100%; height: 4px; background: #222; border-radius: 2px; }
         input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none; height: 18px; width: 18px; border-radius: 50%;
-            background: var(--accent); cursor: pointer; margin-top: -6px;
-            box-shadow: 0 0 10px var(--accent);
+            -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
+            background: var(--primary); cursor: pointer; box-shadow: 0 0 10px var(--primary);
         }
 
-        /* --- INTERFAZ DE EMPLEADOS (CV) --- */
-        #employee-modal {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 500px; background: #e0e0e0; color: #333;
-            border-radius: 4px; padding: 20px; z-index: 200; display: none;
-            box-shadow: 0 0 100px rgba(0,0,0,0.8);
+        /* --- BOTÓN DE ACCIÓN PRINCIPAL --- */
+        .btn-prime {
+            background: linear-gradient(45deg, var(--secondary), var(--primary));
+            border: none; color: white; padding: 15px; border-radius: 12px;
+            font-weight: 800; text-transform: uppercase; letter-spacing: 1px;
+            cursor: pointer; transition: 0.3s;
         }
 
-        .cv-card {
-            background: white; border: 1px solid #ccc; padding: 20px;
-            display: grid; grid-template-columns: 120px 1fr; gap: 20px;
-        }
-        .cv-photo { width: 120px; height: 120px; background: #ddd; object-fit: cover; }
-        .cv-info h2 { font-family: 'Times New Roman', serif; border-bottom: 1px solid #333; }
-        .cv-stat { display: flex; justify-content: space-between; margin-top: 10px; font-size: 14px; }
+        .btn-prime:hover { filter: brightness(1.2); transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0, 81, 255, 0.4); }
 
-        /* --- BOTONES --- */
-        .btn-action {
-            background: var(--ui-blue); color: white; border: none;
-            padding: 12px; border-radius: 4px; cursor: pointer;
-            font-family: 'Orbitron', sans-serif; font-weight: bold;
-            transition: 0.3s; margin-top: 10px;
+        /* --- COMPONENTES ESPECÍFICOS --- */
+        .cpu-grid {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 10px;
         }
-        .btn-action:hover { background: var(--accent); color: #000; box-shadow: 0 0 15px var(--accent); }
-        .btn-hire { background: #27ae60; width: 100%; margin-top: 20px; }
-
-        /* --- BARRA INFERIOR (NAVEGACIÓN) --- */
-        #bottom-nav {
-            position: absolute; bottom: 0; width: 100%; height: 70px;
-            background: #0a1423; border-top: 2px solid var(--ui-blue);
-            display: flex; justify-content: center; gap: 10px; z-index: 100;
-        }
-
-        .nav-item {
-            width: 80px; display: flex; flex-direction: column;
-            align-items: center; justify-content: center;
-            cursor: pointer; transition: 0.2s; color: #5a7b9c;
-        }
-        .nav-item:hover { color: var(--accent); background: rgba(0, 132, 255, 0.1); }
-        .nav-item.active { color: white; border-top: 3px solid var(--accent); background: rgba(0, 132, 255, 0.2); }
-        .nav-icon { font-size: 24px; margin-bottom: 4px; }
-        .nav-label { font-size: 10px; text-transform: uppercase; font-weight: bold; }
-
-        /* --- NOTIFICACIONES --- */
-        #log-container {
-            position: absolute; left: 20px; bottom: 90px;
-            width: 280px; max-height: 150px; overflow: hidden;
-            display: flex; flex-direction: column-reverse; gap: 5px;
-        }
-        .log-entry {
-            background: rgba(0,0,0,0.7); padding: 8px 12px;
-            border-left: 3px solid var(--ui-blue); font-size: 13px;
-            animation: slideIn 0.3s ease-out;
-        }
-        @keyframes slideIn { from { transform: translateX(-100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-
-        /* --- CANVAS 3D --- */
-        #render-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        .cpu-core { width: 100%; aspect-ratio: 1; background: #1a2a3a; border: 1px solid var(--primary); border-radius: 4px; }
     </style>
 </head>
 <body>
-
-    <div id="top-bar">
-        <div class="stat-group">
-            <div class="stat-item">
-                <span class="stat-label">Capital:</span>
-                <span id="txt-money">$18,000,000</span>
+    <div id="hud-top">
+        <div class="hud-group">
+            <div class="stat-card">
+                <span class="stat-label">Capital Social</span>
+                <span id="ui-money" class="stat-val">$15,000,000</span>
             </div>
-            <div class="stat-item">
-                <span class="stat-label">Fans:</span>
-                <span id="txt-fans">50,000</span>
+            <div class="stat-card">
+                <span class="stat-label">Fans Globales</span>
+                <span id="ui-fans" class="stat-val">25,000</span>
             </div>
         </div>
-        <div class="stat-group">
-            <div class="stat-item">
-                <span id="txt-date">16.01.2016</span>
+        <div class="hud-group">
+            <div class="stat-card" style="border-color: var(--warning);">
+                <span class="stat-label">Próximos Impuestos</span>
+                <span id="ui-taxes" class="stat-val">-$120,500</span>
             </div>
-            <div class="stat-item" style="border-left-color: gold;">
-                <span style="color: gold;">ROASTERY GAMES</span>
+            <div class="stat-card" style="border-color: var(--accent);">
+                <span class="stat-label">Fecha Actual</span>
+                <span id="ui-date" class="stat-val">12.04.2026</span>
             </div>
         </div>
     </div>
 
-    <div id="blueprint-grid"></div>
-    <div id="render-canvas"></div>
+    <div id="side-nav">
+        <div class="nav-icon active" onclick="ui.showWindow('main-office')" title="Oficina">🏢</div>
+        <div class="nav-icon" onclick="ui.showWindow('create-cpu')" title="Diseñar CPU">⚙️</div>
+        <div class="nav-icon" onclick="ui.showWindow('create-device')" title="Nuevo Dispositivo">📱</div>
+        <div class="nav-icon" onclick="ui.showWindow('staff')" title="Personal">👥</div>
+        <div class="nav-icon" onclick="ui.showWindow('research')" title="Investigación">🔬</div>
+        <div class="nav-icon" onclick="ui.showWindow('finances')" title="Finanzas e Impuestos">📊</div>
+    </div>
 
-    <div id="panel-design" class="side-panel">
+    <div id="world-container"></div>
+
+    <div id="notification-center"></div>
+
+    <div id="win-create-device" class="window-panel">
         <div class="panel-header">
-            DISEÑO PROTOTIPO
-            <span style="font-size: 10px; color: #555;">v1.0.4</span>
+            <h2 id="device-title">Desarrollar Nuevo Hardware</h2>
+            <button class="nav-icon" onclick="ui.closeWindows()" style="width:35px; height:35px;">×</button>
         </div>
-        
-        <div class="control-row">
-            <label>ANCHO DISPOSITIVO <span class="value-display" id="val-w">1.0</span></label>
-            <input type="range" id="input-w" min="0.5" max="2.0" step="0.05" value="1.0">
+        <div class="tab-bar">
+            <button class="tab-btn active" onclick="ui.switchDeviceType('smartphone')">Smartphone</button>
+            <button class="tab-btn" onclick="ui.switchDeviceType('tablet')">Tablet</button>
+            <button class="tab-btn" onclick="ui.switchDeviceType('laptop')">Laptop</button>
         </div>
-
-        <div class="control-row">
-            <label>ALTO DISPOSITIVO <span class="value-display" id="val-h">1.8</span></label>
-            <input type="range" id="input-h" min="1.0" max="3.0" step="0.05" value="1.8">
-        </div>
-
-        <div class="control-row">
-            <label>GROSOR <span class="value-display" id="val-d">0.1</span></label>
-            <input type="range" id="input-d" min="0.03" max="0.25" step="0.01" value="0.1">
-        </div>
-
-        <div class="control-row">
-            <label>RADIO DE ESQUINAS <span class="value-display" id="val-r">0.15</span></label>
-            <input type="range" id="input-r" min="0.0" max="0.4" step="0.02" value="0.15">
-        </div>
-
-        <div class="control-row" style="margin-top: 10px;">
-            <label>COLOR DEL CHASIS</label>
-            <input type="color" id="input-color" value="#1a1a1a" style="width: 100%; height: 35px; border: none; cursor: pointer; background: none;">
-        </div>
-
-        <div style="flex-grow: 1;"></div>
-
-        <div class="stat-item" style="margin-bottom: 10px; justify-content: space-between;">
-            <span class="stat-label">COSTE PROD:</span>
-            <span id="txt-cost" style="color: #ffcc00;">$450.00</span>
-        </div>
-
-        <button class="btn-action" onclick="app.launchProduct()">INICIAR PRODUCCIÓN</button>
-    </div>
-
-    <div id="employee-modal">
-        <div class="cv-card">
-            <img src="https://i.imgur.com/8Km9tLL.png" class="cv-photo" alt="CV Photo">
-            <div class="cv-info">
-                <h2>Amice Fields</h2>
-                <div class="cv-stat"><strong>País:</strong> 🇸🇪 Suecia</div>
-                <div class="cv-stat"><strong>Edad:</strong> 30 años</div>
-                <div class="cv-stat"><strong>Exp:</strong> 10 años</div>
-                <div class="cv-stat"><strong>Rating:</strong> <span style="color: var(--ui-blue)">16/100</span></div>
-                <div class="cv-stat"><strong>Salario:</strong> <span style="color: #27ae60">$4,320 / mes</span></div>
+        <div class="panel-content" id="device-options">
             </div>
-        </div>
-        <button class="btn-action btn-hire" onclick="app.hireEmployee()">CONTRATAR EMPLEADO</button>
-        <button class="btn-action" style="background: #777; width: 100%;" onclick="app.closeModal()">CERRAR</button>
     </div>
 
-    <div id="log-container"></div>
+    <div id="win-create-cpu" class="window-panel">
+        <div class="panel-header">
+            <h2>Laboratorio de Procesadores</h2>
+            <button class="nav-icon" onclick="ui.closeWindows()" style="width:35px; height:35px;">×</button>
+        </div>
+        <div class="panel-content">
+            <div class="card-item" style="grid-column: 1 / -1;">
+                <h3 class="card-title">Arquitectura del Chip</h3>
+                <div class="cpu-grid" id="cpu-core-visual">
+                    </div>
+            </div>
+            </div>
+    </div>
 
-    <nav id="bottom-nav">
-        <div class="nav-item active" onclick="app.setMode('office')">
-            <span class="nav-icon">🏢</span>
-            <span class="nav-label">OFICINA</span>
+    <div id="design-sidebar">
+        <h3 id="sidebar-title">Ajustes de Chasis</h3>
+        <div class="control-box">
+            <label>Escala X (<span id="v-x">1.0</span>)</label>
+            <input type="range" id="range-x" min="0.5" max="2.5" step="0.01" value="1">
         </div>
-        <div class="nav-item" onclick="app.setMode('design')">
-            <span class="nav-icon">📱</span>
-            <span class="nav-label">DISEÑO</span>
+        <div class="control-box">
+            <label>Escala Y (<span id="v-y">1.0</span>)</label>
+            <input type="range" id="range-y" min="0.5" max="3.0" step="0.01" value="1">
         </div>
-        <div class="nav-item" onclick="app.openEmployeeMenu()">
-            <span class="nav-icon">👥</span>
-            <span class="nav-label">PERSONAL</span>
+        <div class="control-box">
+            <label>Grosor Z (<span id="v-z">1.0</span>)</label>
+            <input type="range" id="range-z" min="0.2" max="1.5" step="0.01" value="1">
         </div>
-        <div class="nav-item" onclick="app.setMode('stats')">
-            <span class="nav-icon">📊</span>
-            <span class="nav-label">STATS</span>
+        <div class="control-box">
+            <label>Radio de Esquinas</label>
+            <input type="range" id="range-radius" min="0" max="0.5" step="0.01" value="0.1">
         </div>
-        <div class="nav-item" onclick="app.setMode('market')">
-            <span class="nav-icon">🛒</span>
-            <span class="nav-label">TIENDA</span>
+        <div class="control-box">
+            <label>Material / Color</label>
+            <input type="color" id="device-color" value="#1a1a1a">
         </div>
-    </nav>
+        <div style="margin-top:auto">
+            <div class="card-stat"><span>Coste Unitario:</span><b id="ui-prod-cost">$0</b></div>
+            <button class="btn-prime" style="width:100%; margin-top:10px;" onclick="game.launchProduction()">Lanzar al Mercado</button>
+        </div>
+    </div>
 
     <script>
-        // --- MOTOR PRINCIPAL DEL JUEGO ---
-        const app = {
-            money: 18000000,
-            fans: 50000,
-            date: new Date(2016, 0, 16),
-            scene: null,
-            camera: null,
-            renderer: null,
-            phone: null,
-            phoneMaterial: null,
-            screen: null,
-            mode: 'design',
-            employees: [],
-
+        /**
+         * ENGINE PRINCIPAL: CORE LOGIC
+         * Maneja economía, tiempo, impuestos y estados.
+         */
+        const game = {
+            money: 15000000,
+            fans: 25000,
+            date: new Date(2026, 3, 12),
+            taxRate: 0.21, // 21% de IVA/Impuestos
+            monthlyExpenses: 120500,
+            activeDevice: null,
+            inventory: { cpus: [], devices: [] },
+            
             init() {
-                this.init3D();
-                this.setupEventListeners();
-                this.gameLoop();
+                console.log("Iniciando motor Devices Tycoon...");
+                this.startClock();
+                render.init(); // El render 3D se definirá en la parte 3
                 this.updateUI();
-                this.log("Sistemas iniciados. Listo para diseñar.");
             },
 
-            init3D() {
-                // Configuración básica de la escena
-                this.scene = new THREE.Scene();
-                this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-                this.camera.position.set(0, 0, 5);
+            startClock() {
+                setInterval(() => {
+                    // Cada día de juego son 3 segundos reales
+                    this.date.setDate(this.date.getDate() + 1);
+                    
+                    // Si es día 1, pagar impuestos y salarios
+                    if (this.date.getDate() === 1) {
+                        this.processMonthlyFinances();
+                    }
+                    
+                    this.updateUI();
+                }, 3000);
+            },
 
-                this.renderer = new THREE.WebGLRenderer({ 
-                    antialias: true, 
-                    alpha: true 
-                });
+            processMonthlyFinances() {
+                const taxBill = this.monthlyExpenses + (this.money * 0.02); // Gastos fijos + 2% de patrimonio
+                this.money -= taxBill;
+                ui.notify(`Impuestos pagados: -$${taxBill.toLocaleString()}`, "danger");
+                if (this.money < 0) ui.notify("¡ALERTA: Bancarrota inminente!", "danger");
+            },
+
+            updateUI() {
+                document.getElementById('ui-money').innerText = `$${Math.floor(this.money).toLocaleString()}`;
+                document.getElementById('ui-fans').innerText = this.fans.toLocaleString();
+                document.getElementById('ui-date').innerText = this.formatDate(this.date);
+                document.getElementById('ui-taxes').innerText = `-$${this.monthlyExpenses.toLocaleString()}`;
+            },
+
+            formatDate(d) {
+                return `${d.getDate().toString().padStart(2, '0')}.${(d.getMonth() + 1).toString().padStart(2, '0')}.${d.getFullYear()}`;
+            }
+        };
+    /**
+         * ENGINE RENDER: GRÁFICOS 3D
+         * Basado en Three.js. Maneja la visualización de dispositivos y oficina.
+         */
+        const render = {
+            scene: null, camera: null, renderer: null, 
+            device: null, screen: null, pivot: null,
+            room: null,
+            
+            init() {
+                const container = document.getElementById('world-container');
+                
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0x050a10);
+                
+                this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+                this.camera.position.set(4, 4, 4);
+                this.camera.lookAt(0, 0, 0);
+
+                this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
                 this.renderer.setSize(window.innerWidth, window.innerHeight);
                 this.renderer.setPixelRatio(window.devicePixelRatio);
-                document.getElementById('render-canvas').appendChild(this.renderer.domElement);
+                this.renderer.shadowMap.enabled = true;
+                container.appendChild(this.renderer.domElement);
 
-                // Luces para resaltar el material del dispositivo
-                const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-                this.scene.add(ambientLight);
+                // Iluminación de Estudio Profesional
+                const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+                this.scene.add(ambient);
 
-                const pointLight = new THREE.PointLight(0x0084ff, 1.5);
-                pointLight.position.set(5, 5, 5);
-                this.scene.add(pointLight);
+                const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+                sun.position.set(5, 10, 7.5);
+                sun.castShadow = true;
+                this.scene.add(sun);
 
-                const topLight = new THREE.DirectionalLight(0xffffff, 1);
-                topLight.position.set(0, 10, 0);
-                this.scene.add(topLight);
+                const blueFill = new THREE.PointLight(0x00a2ff, 1, 10);
+                blueFill.position.set(-2, 1, 2);
+                this.scene.add(blueFill);
 
-                this.createPhone();
+                this.pivot = new THREE.Group();
+                this.scene.add(this.pivot);
+
+                this.createOffice(); // Fondo de oficina isométrica
                 this.animate();
+                
+                window.addEventListener('resize', () => this.onWindowResize());
             },
 
-            // Crea la geometría del teléfono con esquinas redondeadas dinámicas
-            createPhone() {
-                if (this.phone) this.scene.remove(this.phone);
+            createOffice() {
+                // Suelo de la oficina
+                const floorGeo = new THREE.PlaneGeometry(10, 10);
+                const floorMat = new THREE.MeshStandardMaterial({ 
+                    color: 0x1a2233, 
+                    roughness: 0.8 
+                });
+                const floor = new THREE.Mesh(floorGeo, floorMat);
+                floor.rotation.x = -Math.PI / 2;
+                floor.position.y = -1.5;
+                floor.receiveShadow = true;
+                this.scene.add(floor);
 
-                const w = parseFloat(document.getElementById('input-w').value);
-                const h = parseFloat(document.getElementById('input-h').value);
-                const d = parseFloat(document.getElementById('input-d').value);
-                const r = parseFloat(document.getElementById('input-r').value);
+                // Cuadrícula técnica (Blueprint)
+                const grid = new THREE.GridHelper(10, 20, 0x00a2ff, 0x111111);
+                grid.position.y = -1.49;
+                this.scene.add(grid);
+            },
 
-                // Dibujamos la forma 2D para extrudirla (bordes redondeados)
+            // Método principal para construir el hardware visual
+            buildHardware(type, params) {
+                if (this.device) this.pivot.remove(this.device);
+
+                const group = new THREE.Group();
+                
+                // Parámetros de geometría redondeada
                 const shape = new THREE.Shape();
+                const w = params.width, h = params.height, r = params.radius, d = params.depth;
+
                 shape.moveTo(-w/2 + r, -h/2);
                 shape.lineTo(w/2 - r, -h/2);
                 shape.absarc(w/2 - r, -h/2 + r, r, Math.PI * 1.5, 0, false);
@@ -331,201 +426,812 @@
                 shape.lineTo(-w/2, -h/2 + r);
                 shape.absarc(-w/2 + r, -h/2 + r, r, Math.PI, Math.PI * 1.5, false);
 
-                const extrudeSettings = { depth: d, bevelEnabled: false };
+                const extrudeSettings = { depth: d, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02, bevelSegments: 5 };
                 const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
                 geometry.center();
 
-                this.phoneMaterial = new THREE.MeshStandardMaterial({ 
-                    color: document.getElementById('input-color').value,
-                    roughness: 0.2,
-                    metalness: 0.8
+                const material = new THREE.MeshStandardMaterial({ 
+                    color: params.color, 
+                    metalness: 0.9, 
+                    roughness: 0.1 
                 });
 
-                this.phone = new THREE.Mesh(geometry, this.phoneMaterial);
-                
-                // Añadimos la pantalla (un plano negro ligeramente por delante)
-                const screenGeo = new THREE.PlaneGeometry(w * 0.92, h * 0.92);
-                const screenMat = new THREE.MeshBasicMaterial({ color: 0x050505 });
-                this.screen = new THREE.Mesh(screenGeo, screenMat);
-                this.screen.position.z = d/2 + 0.001;
-                
-                this.phone.add(this.screen);
-                this.scene.add(this.phone);
-            },
+                const body = new THREE.Mesh(geometry, material);
+                body.castShadow = true;
+                group.add(body);
 
-            setupEventListeners() {
-                // Actualización en tiempo real de los sliders
-                const controls = ['w', 'h', 'd', 'r'];
-                controls.forEach(id => {
-                    document.getElementById(`input-${id}`).addEventListener('input', (e) => {
-                        document.getElementById(`val-${id}`).innerText = e.target.value;
-                        this.createPhone();
-                        this.calculateCost();
-                    });
+                // Pantalla (Efecto cristal)
+                const screenGeo = new THREE.PlaneGeometry(w * 0.94, h * 0.94);
+                const screenMat = new THREE.MeshPhysicalMaterial({ 
+                    color: 0x000000,
+                    metalness: 0,
+                    roughness: 0.05,
+                    transmission: 0.5,
+                    thickness: 0.1
                 });
+                const screen = new THREE.Mesh(screenGeo, screenMat);
+                screen.position.z = d/2 + 0.025;
+                body.add(screen);
 
-                document.getElementById('input-color').addEventListener('input', (e) => {
-                    this.phoneMaterial.color.set(e.target.value);
-                });
-
-                window.addEventListener('resize', () => {
-                    this.camera.aspect = window.innerWidth / window.innerHeight;
-                    this.camera.updateProjectionMatrix();
-                    this.renderer.setSize(window.innerWidth, window.innerHeight);
-                });
-            },
-
-            calculateCost() {
-                const w = parseFloat(document.getElementById('input-w').value);
-                const h = parseFloat(document.getElementById('input-h').value);
-                const d = parseFloat(document.getElementById('input-d').value);
-                // Lógica de coste: a mayor tamaño y menor grosor (miniaturización), más caro
-                const baseCost = 200;
-                const sizeFactor = (w * h * 50);
-                const techFactor = (0.3 / d) * 20;
-                const total = baseCost + sizeFactor + techFactor;
-                document.getElementById('txt-cost').innerText = `$${total.toFixed(2)}`;
-            },
-
-            setMode(newMode) {
-                this.mode = newMode;
-                const panel = document.getElementById('panel-design');
-                const navItems = document.querySelectorAll('.nav-item');
-                
-                navItems.forEach(item => item.classList.remove('active'));
-                
-                if (newMode === 'design') {
-                    panel.style.display = 'flex';
-                    navItems[1].classList.add('active');
-                    this.log("Modo diseño activado.");
-                } else {
-                    panel.style.display = 'none';
-                    if(newMode === 'office') navItems[0].classList.add('active');
-                    this.log(`Cambiando a vista de ${newMode}...`);
+                // Lógica para Laptops (Añadir base)
+                if (type === 'laptop') {
+                    const base = body.clone();
+                    base.rotation.x = Math.PI / 2;
+                    base.position.y = -h/2;
+                    base.position.z = h/2;
+                    group.add(base);
                 }
+
+                this.device = group;
+                this.pivot.add(this.device);
             },
 
-            log(msg) {
-                const container = document.getElementById('log-container');
-                const entry = document.createElement('div');
-                entry.className = 'log-entry';
-                entry.innerText = `> ${msg}`;
-                container.prepend(entry);
-                if (container.children.length > 5) container.lastChild.remove();
-            },
-
-            updateUI() {
-                document.getElementById('txt-money').innerText = `$${this.money.toLocaleString()}`;
-                document.getElementById('txt-fans').innerText = this.fans.toLocaleString();
-                
-                const d = this.date;
-                const dateStr = `${d.getDate().toString().padStart(2,'0')}.${(d.getMonth()+1).toString().padStart(2,'0')}.${d.getFullYear()}`;
-                document.getElementById('txt-date').innerText = dateStr;
+            onWindowResize() {
+                this.camera.aspect = window.innerWidth / window.innerHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
             },
 
             animate() {
                 requestAnimationFrame(() => this.animate());
-                if (this.phone) {
-                    // Rotación suave para exhibición
-                    this.phone.rotation.y += 0.005;
-                    if (this.mode === 'design') {
-                        this.phone.rotation.x = THREE.MathUtils.lerp(this.phone.rotation.x, 0.2, 0.1);
-                    }
+                
+                // Rotación suave de exhibición
+                if (this.pivot) {
+                    this.pivot.rotation.y += 0.005;
                 }
+
+                TWEEN.update();
                 this.renderer.render(this.scene, this.camera);
+            }
+        };
+
+        /**
+         * INTERFAZ DE USUARIO (Object `ui`)
+         * Maneja ventanas, notificaciones y cambios de modo.
+         */
+        const ui = {
+            activeWindow: null,
+            currentDeviceType: 'smartphone',
+
+            showWindow(id) {
+                this.closeWindows();
+                const win = document.getElementById(`win-${id}`);
+                if (win) {
+                    win.style.display = 'flex';
+                    this.activeWindow = win;
+                }
+                
+                if (id === 'create-device') {
+                    document.getElementById('design-sidebar').style.display = 'flex';
+                    this.updateDevicePreview();
+                }
             },
 
-            gameLoop() {
-                setInterval(() => {
-                    // El tiempo avanza cada 2 segundos de vida real
-                    this.date.setDate(this.date.getDate() + 1);
-                    this.updateUI();
-                }, 2000);
+            closeWindows() {
+                document.querySelectorAll('.window-panel').forEach(w => w.style.display = 'none');
+                document.getElementById('design-sidebar').style.display = 'none';
+                this.activeWindow = null;
             },
-            // --- SISTEMA DE LANZAMIENTO Y VENTAS ---
-            launchProduct() {
-                const cost = parseFloat(document.getElementById('txt-cost').innerText.replace('$', ''));
+
+            notify(text, type = 'primary') {
+                const container = document.getElementById('notification-center');
+                const toast = document.createElement('div');
+                toast.className = `toast`;
+                toast.style.borderLeftColor = `var(--${type})`;
+                toast.innerHTML = `<strong>SISTEMA:</strong><br>${text}`;
                 
-                if (this.money < cost) {
-                    this.log("¡Fondos insuficientes para producción!");
+                container.appendChild(toast);
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    setTimeout(() => toast.remove(), 500);
+                }, 4000);
+            },
+
+            switchDeviceType(type) {
+                this.currentDeviceType = type;
+                document.querySelectorAll('.tab-btn').forEach(btn => {
+                    btn.classList.toggle('active', btn.innerText.toLowerCase() === type);
+                });
+                this.updateDevicePreview();
+            },
+            // --- CONTINUACIÓN DEL OBJETO UI ---
+            updateDevicePreview() {
+                // Obtenemos valores de los sliders de diseño
+                const params = {
+                    width: parseFloat(document.getElementById('range-x').value),
+                    height: parseFloat(document.getElementById('range-y').value),
+                    depth: parseFloat(document.getElementById('range-z').value),
+                    radius: parseFloat(document.getElementById('range-radius').value),
+                    color: document.getElementById('device-color').value
+                };
+
+                // Actualizamos etiquetas de texto en la UI
+                document.getElementById('v-x').innerText = params.width.toFixed(2);
+                document.getElementById('v-y').innerText = params.height.toFixed(2);
+                document.getElementById('v-z').innerText = params.depth.toFixed(2);
+
+                // Llamamos al render para reconstruir la geometría
+                render.buildHardware(this.currentDeviceType, params);
+                
+                // Cálculo de coste dinámico
+                const basePrice = this.currentDeviceType === 'laptop' ? 800 : 300;
+                const volume = params.width * params.height * params.depth;
+                const finalCost = basePrice + (volume * 150);
+                document.getElementById('ui-prod-cost').innerText = `$${finalCost.toFixed(2)}`;
+            },
+
+            // Generador visual de núcleos para la CPU
+            drawCPUCores(count) {
+                const container = document.getElementById('cpu-core-visual');
+                container.innerHTML = '';
+                for(let i = 0; i < count; i++) {
+                    const core = document.createElement('div');
+                    core.className = 'cpu-core';
+                    // Efecto de iluminación aleatoria para simular actividad
+                    core.style.boxShadow = `0 0 ${Math.random()*10}px var(--primary)`;
+                    container.appendChild(core);
+                }
+            }
+        };
+
+        /**
+         * SISTEMA DE COMPONENTES (CPU, RAM, GPU)
+         */
+        const tech = {
+            currentCPU: {
+                name: "NextGen Alpha",
+                cores: 4,
+                ghz: 2.4,
+                nm: 14, // Nanómetros
+                cost: 120
+            },
+
+            createCPU() {
+                const name = prompt("Nombre del Procesador:", "PowerChip v1");
+                if(!name) return;
+
+                // Lógica de coste por complejidad
+                const complexity = (this.currentCPU.cores * 50) + (this.currentCPU.ghz * 100);
+                if(game.money < complexity) {
+                    ui.notify("Fondos insuficientes para I+D de CPU", "danger");
                     return;
                 }
 
-                this.money -= cost;
-                this.updateUI();
-                this.log("Producción iniciada... El dispositivo llegará pronto al mercado.");
-                this.setMode('office');
-
-                // Simulación de revisión y ventas
-                setTimeout(() => {
-                    const quality = this.calculateQuality();
-                    const salesVolume = Math.floor((quality * 100) + (this.fans * 0.1));
-                    const revenue = salesVolume * 600; // Precio de venta promedio
-                    
-                    this.money += revenue;
-                    this.fans += Math.floor(salesVolume * 0.05);
-                    
-                    this.log(`Review: ${quality}/10. Ventas: ${salesVolume.toLocaleString()} unidades.`);
-                    this.log(`Ingresos totales: +$${revenue.toLocaleString()}`);
-                    this.updateUI();
-                }, 3000);
-            },
-
-            calculateQuality() {
-                // Algoritmo de calidad basado en equilibrio de hardware
-                const w = parseFloat(document.getElementById('input-w').value);
-                const h = parseFloat(document.getElementById('input-h').value);
-                const d = parseFloat(document.getElementById('input-d').value);
+                game.money -= complexity;
+                const newCPU = { ...this.currentCPU, name: name, id: Date.now() };
+                game.inventory.cpus.push(newCPU);
                 
-                let score = 5;
-                if (d < 0.08) score += 2; // Bonus por delgadez (ingeniería)
-                if (w > 0.8 && w < 1.2) score += 1; // Ergonomía
+                ui.notify(`¡CPU ${name} desarrollada con éxito!`, "success");
+                ui.closeWindows();
+                game.updateUI();
+            },
+
+            updateCPUStats(cores, ghz) {
+                this.currentCPU.cores = cores;
+                this.currentCPU.ghz = ghz;
+                ui.drawCPUCores(cores);
+            }
+        };
+
+        /**
+         * GESTIÓN DE PERSONAL (Basado en la captura de CV)
+         */
+        const staff = {
+            candidates: [
+                { name: "Amice Fields", country: "Sweden", age: 30, exp: 10, rating: 16, salary: 4320, img: "https://i.imgur.com/8Km9tLL.png" },
+                { name: "Marco Rossi", country: "Italy", age: 25, exp: 4, rating: 45, salary: 3100, img: "https://i.imgur.com/393282.png" },
+                { name: "Yuki Tanaka", country: "Japan", age: 42, exp: 20, rating: 89, salary: 8500, img: "https://i.imgur.com/282382.png" }
+            ],
+
+            renderCandidates() {
+                const container = document.getElementById('device-options'); // Reutilizamos panel de contenido
+                if(ui.activeWindow.id !== 'win-staff') return;
                 
-                // Sumamos el bonus por empleados (si tienes equipo, la calidad sube)
-                score += (this.employees.length * 0.5);
-                
-                return Math.min(10, score).toFixed(1);
+                container.innerHTML = '';
+                this.candidates.forEach(c => {
+                    const card = document.createElement('div');
+                    card.className = 'card-item';
+                    card.innerHTML = `
+                        <div style="display:flex; gap:15px;">
+                            <img src="${c.img}" style="width:60px; height:60px; border-radius:8px; background:#222;">
+                            <div>
+                                <div class="card-title">${c.name}</div>
+                                <div style="font-size:12px; color:#666;">${c.country}</div>
+                            </div>
+                        </div>
+                        <div class="card-stat"><span>Experiencia:</span><b>${c.exp} años</b></div>
+                        <div class="card-stat"><span>Rating:</span><b style="color:var(--primary)">${c.rating}/100</b></div>
+                        <div class="card-stat"><span>Salario:</span><b style="color:var(--success)">$${c.salary}/mes</b></div>
+                        <button class="btn-prime" onclick="staff.hire('${c.name}')">Contratar</button>
+                    `;
+                    container.appendChild(card);
+                });
             },
 
-            // --- GESTIÓN DE EMPLEADOS ---
-            openEmployeeMenu() {
-                const modal = document.getElementById('employee-modal');
-                modal.style.display = 'block';
-                this.log("Revisando currículums disponibles...");
-            },
-
-            closeModal() {
-                document.getElementById('employee-modal').style.display = 'none';
-            },
-
-            hireEmployee() {
-                const salary = 4320;
-                if (this.money >= salary * 3) { // Pedimos reserva para 3 meses
-                    this.employees.push({ name: "Amice Fields", salary: salary });
-                    this.money -= salary;
-                    this.updateUI();
-                    this.log("Empleado contratado: Amice Fields. La calidad de diseño aumentará.");
-                    this.closeModal();
-                } else {
-                    alert("No tienes capital suficiente para cubrir el salario inicial.");
+            hire(name) {
+                const c = this.candidates.find(cand => cand.name === name);
+                if(game.money < c.salary) {
+                    ui.notify("No puedes permitirte este empleado", "danger");
+                    return;
                 }
+                game.monthlyExpenses += c.salary;
+                ui.notify(`${name} se ha unido al equipo`, "success");
+                // Eliminar de candidatos
+                this.candidates = this.candidates.filter(cand => cand.name !== name);
+                this.renderCandidates();
+                game.updateUI();
+            }
+        };
+
+        // --- LISTENERS DE LOS SLIDERS DE DISEÑO ---
+        function setupSliders() {
+            const ids = ['range-x', 'range-y', 'range-z', 'range-radius', 'device-color'];
+            ids.forEach(id => {
+                document.getElementById(id).addEventListener('input', () => {
+                    ui.updateDevicePreview();
+                });
+            });
+        }
+        /**
+         * SISTEMA DE INVESTIGACIÓN Y TECNOLOGÍA
+         */
+        const research = {
+            techTree: [
+                { id: 'oled', name: 'Pantallas OLED', cost: 500000, points: 100, unlocked: false, desc: 'Aumenta la calidad visual +2' },
+                { id: '5g', name: 'Módem 5G', cost: 1200000, points: 250, unlocked: false, desc: 'Atrae a fans entusiastas' },
+                { id: 'aluminum', name: 'Chasis de Aluminio', cost: 300000, points: 80, unlocked: false, desc: 'Reduce el grosor mínimo' },
+                { id: 'battery_solid', name: 'Batería de Estado Sólido', cost: 2500000, points: 500, unlocked: false, desc: 'Autonomía premium' }
+            ],
+
+            renderResearch() {
+                const container = document.getElementById('device-options');
+                if (ui.activeWindow.id !== 'win-research') return;
+
+                container.innerHTML = '';
+                this.techTree.forEach(t => {
+                    const card = document.createElement('div');
+                    card.className = 'card-item';
+                    card.style.opacity = t.unlocked ? '0.5' : '1';
+                    card.innerHTML = `
+                        <div class="card-title">${t.name}</div>
+                        <p style="font-size:12px; color:#888; margin:5px 0;">${t.desc}</p>
+                        <div class="card-stat"><span>Coste I+D:</span><b>$${t.cost.toLocaleString()}</b></div>
+                        <button class="btn-prime" ${t.unlocked ? 'disabled' : ''} onclick="research.unlock('${t.id}')">
+                            ${t.unlocked ? 'DESBLOQUEADO' : 'INVESTIGAR'}
+                        </button>
+                    `;
+                    container.appendChild(card);
+                });
             },
 
-            // --- UTILIDADES ---
-            formatDate(date) {
-                return date.toLocaleDateString('es-ES', {
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: 'numeric'
+            unlock(id) {
+                const t = this.techTree.find(item => item.id === id);
+                if (game.money >= t.cost) {
+                    game.money -= t.cost;
+                    t.unlocked = true;
+                    ui.notify(`Tecnología desbloqueada: ${t.name}`, "success");
+                    this.renderResearch();
+                    game.updateUI();
+                } else {
+                    ui.notify("No hay capital suficiente para esta investigación", "danger");
+                }
+            }
+        };
+
+        /**
+         * LÓGICA DE LANZAMIENTO Y MERCADO
+         */
+        game.launchProduction = function() {
+            const prodCost = parseFloat(document.getElementById('ui-prod-cost').innerText.replace('$', ''));
+            const marketingCost = 500000; // Campaña base
+            const totalInvestment = prodCost * 1000 + marketingCost; // Lote de 1000 unidades iniciales
+
+            if (this.money < totalInvestment) {
+                ui.notify("Dinero insuficiente para el lanzamiento masivo", "danger");
+                return;
+            }
+
+            this.money -= totalInvestment;
+            ui.notify("¡Producto lanzado! Esperando resultados de ventas...", "primary");
+            ui.closeWindows();
+
+            // Simulación de ciclo de ventas (3 segundos de espera para reviews)
+            setTimeout(() => {
+                this.calculateSalesResults(prodCost);
+            }, 3000);
+        };
+
+        game.calculateSalesResults = function(cost) {
+            // Factor de calidad basado en diseño y tecnologías desbloqueadas
+            let quality = 5.0;
+            if (research.techTree.find(t => t.id === 'oled').unlocked) quality += 1.5;
+            if (research.techTree.find(t => t.id === 'aluminum').unlocked) quality += 1.0;
+
+            // Variabilidad del mercado
+            const hype = (this.fans / 10000) * (Math.random() * 2);
+            const score = Math.min(10, quality + hype).toFixed(1);
+
+            // Cálculo de ventas: Fans + Hype / Precio (aquí simplificado)
+            const unitsSold = Math.floor((this.fans * 0.2) * (score / 5));
+            const pricePerUnit = cost * 2.5; // Margen del 150%
+            const grossRevenue = unitsSold * pricePerUnit;
+
+            // --- CÁLCULO DE IMPUESTOS (VAT / IVA / Aranceles) ---
+            const salesTax = grossRevenue * this.taxRate;
+            const netProfit = grossRevenue - salesTax;
+
+            this.money += netProfit;
+            this.fans += Math.floor(unitsSold * 0.1);
+
+            ui.notify(`VENTAS: ${unitsSold.toLocaleString()} unidades. Nota: ${score}/10`, "success");
+            ui.notify(`Impuestos de venta pagados: -$${salesTax.toLocaleString()}`, "warning");
+            this.updateUI();
+        };
+
+        /**
+         * SISTEMA DE FINANZAS DETALLADO
+         */
+        const finance = {
+            renderFinances() {
+                const container = document.getElementById('device-options');
+                if (ui.activeWindow.id !== 'win-finances') return;
+
+                container.innerHTML = `
+                    <div class="card-item" style="grid-column: 1 / -1;">
+                        <h3 class="card-title">Balance General</h3>
+                        <div class="card-stat"><span>Impuestos Corporativos:</span><b>${(game.taxRate * 100)}%</b></div>
+                        <div class="card-stat"><span>Gastos de Personal:</span><b>$${game.monthlyExpenses.toLocaleString()}/mes</b></div>
+                        <div class="card-stat"><span>Valor de la Empresa:</span><b style="color:var(--success)">$${(game.money + (game.fans * 10)).toLocaleString()}</b></div>
+                        <hr style="border:0; border-top:1px solid #333; margin:10px 0;">
+                        <p style="font-size:11px; color:#666;">Los impuestos se deducen automáticamente cada día 1 de mes.</p>
+                    </div>
+                `;
+            }
+        };
+
+        // Inyección de lógica en el sistema de ventanas
+        const originalShowWindow = ui.showWindow;
+        ui.showWindow = function(id) {
+            originalShowWindow.call(this, id);
+            if (id === 'staff') staff.renderCandidates();
+            if (id === 'research') research.renderResearch();
+            if (id === 'finances') finance.renderFinances();
+        };
+        /**
+         * EDITOR AVANZADO: COMPONENTES Y CÁMARAS
+         */
+        const editor = {
+            currentConfig: {
+                cpu: null,
+                ram: 4,
+                storage: 64,
+                cameraRes: 12,
+                frontCamera: true
+            },
+
+            renderComponentSelector() {
+                const container = document.getElementById('device-options');
+                if (ui.activeWindow.id !== 'win-create-device') return;
+
+                // Limpiamos y añadimos selectores de hardware
+                container.innerHTML = `
+                    <div class="card-item" style="grid-column: 1 / -1;">
+                        <h3 class="card-title">Configuración de Hardware Interno</h3>
+                        <div class="control-box" style="margin-top:10px;">
+                            <label>Procesador (CPU)</label>
+                            <select id="select-cpu" onchange="editor.updateHardware()" style="background:#111; color:white; padding:8px; border:1px solid var(--primary);">
+                                <option value="basic">Genérico Dual-Core ($45)</option>
+                                ${game.inventory.cpus.map(cpu => `<option value="${cpu.id}">${cpu.name} (${cpu.cores} núcleos)</option>`).join('')}
+                            </select>
+                        </div>
+                    </div>
+                `;
+
+                // Añadimos tarjetas para RAM y Cámara
+                this.addHardwareCard(container, "Memoria RAM", "ram", [2, 4, 6, 8, 12, 16], "GB");
+                this.addHardwareCard(container, "Cámara Principal", "camera", [8, 12, 20, 48, 64, 108], "MP");
+                this.addHardwareCard(container, "Almacenamiento", "storage", [32, 64, 128, 256, 512, 1024], "GB");
+            },
+
+            addHardwareCard(container, title, type, options, unit) {
+                const card = document.createElement('div');
+                card.className = 'card-item';
+                card.innerHTML = `
+                    <div class="card-title" style="font-size:14px;">${title}</div>
+                    <div class="cpu-grid" style="grid-template-columns: repeat(3, 1fr);">
+                        ${options.map(opt => `
+                            <button class="tab-btn" style="font-size:10px; padding:5px;" onclick="editor.selectOption('${type}', ${opt}, this)">
+                                ${opt}${unit}
+                            </button>
+                        `).join('')}
+                    </div>
+                `;
+                container.appendChild(card);
+            },
+
+            selectOption(type, value, btn) {
+                // Feedback visual de selección
+                btn.parentElement.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                if(type === 'ram') this.currentConfig.ram = value;
+                if(type === 'camera') this.currentConfig.cameraRes = value;
+                if(type === 'storage') this.currentConfig.storage = value;
+                
+                ui.updateDevicePreview();
+            },
+
+            updateHardware() {
+                const cpuId = document.getElementById('select-cpu').value;
+                this.currentConfig.cpu = game.inventory.cpus.find(c => c.id == cpuId) || null;
+                ui.updateDevicePreview();
+            }
+        };
+
+        /**
+         * LÓGICA DE PRODUCTIVIDAD (EMPLEADOS)
+         */
+        game.getDevSpeed = function() {
+            // La velocidad base es 1.0. Cada empleado añade según su rating.
+            let speedBonus = 0;
+            staff.hiredCount = 3; // Placeholder para contador real
+            
+            // Si no hay empleados, el desarrollo es manual y lento
+            if (this.employees.length === 0) return 0.5;
+            
+            this.employees.forEach(emp => {
+                speedBonus += (emp.rating / 100);
+            });
+            
+            return 1.0 + speedBonus;
+        };
+
+        /**
+         * REESCRITURA DEL SISTEMA DE LANZAMIENTO (CON TIEMPO DE ESPERA)
+         */
+        game.startDevelopment = function() {
+            const devSpeed = this.getDevSpeed();
+            const baseTime = 10000; // 10 segundos base
+            const actualTime = baseTime / devSpeed;
+
+            ui.notify(`Desarrollo iniciado. Tiempo estimado: ${(actualTime/1000).toFixed(1)}s`, "primary");
+            ui.closeWindows();
+
+            // Barra de progreso visual (opcional para la siguiente parte)
+            this.isDeveloping = true;
+            
+            setTimeout(() => {
+                this.isDeveloping = false;
+                this.launchProduction(); // Llama a la lógica de ventas de la Parte 5
+            }, actualTime);
+        };
+
+        // --- SISTEMA DE SMARTWATCHES Y AURICULARES (EXTENSIÓN) ---
+        ui.switchDeviceType = function(type) {
+            this.currentDeviceType = type;
+            
+            // Ajustamos sliders según el tipo de dispositivo
+            const sx = document.getElementById('range-x');
+            const sy = document.getElementById('range-y');
+            
+            if(type === 'smartphone') { sx.value = 1.0; sy.value = 1.8; }
+            if(type === 'tablet') { sx.value = 1.8; sy.value = 2.4; }
+            if(type === 'laptop') { sx.value = 2.5; sy.value = 1.6; }
+            if(type === 'watch') { sx.value = 0.6; sy.value = 0.6; }
+
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.innerText.toLowerCase() === type);
+            });
+
+            this.updateDevicePreview();
+            if(ui.activeWindow && ui.activeWindow.id === 'win-create-device') {
+                editor.renderComponentSelector();
+            }
+        };
+
+        // Vinculamos el botón de contratar con la lógica de empleados
+        staff.hire = function(name) {
+            const c = this.candidates.find(cand => cand.name === name);
+            if(game.money < c.salary) {
+                ui.notify("No puedes permitirte este empleado", "danger");
+                return;
+            }
+            game.money -= c.salary; // Coste de contratación
+            game.monthlyExpenses += c.salary;
+            game.employees.push(c); // Añadir al array global
+            
+            ui.notify(`${name} contratado. Velocidad de I+D: +${(c.rating/10).toFixed(1)}%`, "success");
+            this.candidates = this.candidates.filter(cand => cand.name !== name);
+            this.renderCandidates();
+            game.updateUI();
+        };
+        /**
+         * MÓDULO DE ACCESORIOS Y WEARABLES
+         */
+        const wearables = {
+            types: {
+                watch: { baseCost: 150, minSize: 0.4, maxSize: 0.8 },
+                buds: { baseCost: 80, minSize: 0.1, maxSize: 0.3 }
+            },
+
+            initWearable(type) {
+                ui.currentDeviceType = type;
+                const config = this.types[type];
+                
+                // Ajuste de cámara para objetos pequeños
+                render.camera.position.set(2, 2, 2);
+                
+                // Actualizamos sliders para escalas menores
+                const sx = document.getElementById('range-x');
+                sx.min = config.minSize;
+                sx.max = config.maxSize;
+                sx.value = (config.minSize + config.maxSize) / 2;
+                
+                ui.updateDevicePreview();
+                ui.notify(`Modo ${type.toUpperCase()} activado`, "accent");
+            }
+        };
+
+        /**
+         * SISTEMA DE MARKETING Y EVENTOS
+         */
+        const marketing = {
+            options: [
+                { id: 'social', name: 'Campaña Redes Sociales', cost: 50000, hype: 1.2, reach: 5000 },
+                { id: 'tv', name: 'Anuncio en Prime Time', cost: 500000, hype: 2.5, reach: 50000 },
+                { id: 'keynote', name: 'Evento de Presentación', cost: 2000000, hype: 5.0, reach: 200000 }
+            ],
+            currentCampaigns: [],
+
+            renderMenu() {
+                const container = document.getElementById('device-options');
+                if (ui.activeWindow.id !== 'win-marketing') return;
+
+                container.innerHTML = '<h3>Seleccionar Plan de Marketing</h3>';
+                this.options.forEach(opt => {
+                    const card = document.createElement('div');
+                    card.className = 'card-item';
+                    card.innerHTML = `
+                        <div class="card-title">${opt.name}</div>
+                        <div class="card-stat"><span>Coste:</span><b>$${opt.cost.toLocaleString()}</b></div>
+                        <div class="card-stat"><span>Impacto Hype:</span><b>x${opt.hype}</b></div>
+                        <button class="btn-prime" onclick="marketing.buy('${opt.id}')">Contratar</button>
+                    `;
+                    container.appendChild(card);
+                });
+            },
+
+            buy(id) {
+                const opt = this.options.find(o => o.id === id);
+                if (game.money >= opt.cost) {
+                    game.money -= opt.cost;
+                    this.currentCampaigns.push(opt);
+                    ui.notify(`Campaña "${opt.name}" iniciada`, "success");
+                    game.updateUI();
+                } else {
+                    ui.notify("Fondos insuficientes para publicidad", "danger");
+                }
+            }
+        };
+
+        /**
+         * HISTORIAL Y ESTADÍSTICAS DE VENTAS
+         */
+        const stats = {
+            history: [],
+
+            recordSale(name, units, revenue, score) {
+                this.history.push({
+                    name: name,
+                    units: units,
+                    revenue: revenue,
+                    score: score,
+                    date: new Date(game.date)
+                });
+            },
+
+            renderStats() {
+                const container = document.getElementById('device-options');
+                if (ui.activeWindow.id !== 'win-stats') return;
+
+                if (this.history.length === 0) {
+                    container.innerHTML = '<p style="text-align:center; color:#666;">No hay datos de ventas aún.</p>';
+                    return;
+                }
+
+                container.innerHTML = '<h3 style="grid-column:1/-1">Rendimiento Histórico</h3>';
+                this.history.slice().reverse().forEach(entry => {
+                    const card = document.createElement('div');
+                    card.className = 'card-item';
+                    card.innerHTML = `
+                        <div class="card-title">${entry.name}</div>
+                        <div class="card-stat"><span>Unidades:</span><b>${entry.units.toLocaleString()}</b></div>
+                        <div class="card-stat"><span>Ingresos:</span><b style="color:var(--success)">$${entry.revenue.toLocaleString()}</b></div>
+                        <div class="card-stat"><span>Nota:</span><b>${entry.score}/10</b></div>
+                        <div style="font-size:10px; color:#444; margin-top:5px;">Lanzado: ${game.formatDate(entry.date)}</div>
+                    `;
+                    container.appendChild(card);
                 });
             }
         };
 
-        // --- INICIALIZACIÓN AL CARGAR ---
-        window.addEventListener('DOMContentLoaded', () => {
-            app.init();
-            app.calculateCost();
-        });
+        /**
+         * LÓGICA DE IMPUESTOS ANUALES Y AUDITORÍAS
+         */
+        game.checkAudits = function() {
+            // Si el jugador tiene mucho dinero y pocos empleados, hay riesgo de auditoría
+            if (this.money > 50000000 && this.employees.length < 2) {
+                const fine = this.money * 0.15;
+                this.money -= fine;
+                ui.notify(`AUDITORÍA: Multa por falta de estructura legal -$${fine.toLocaleString()}`, "danger");
+            }
+        };
+
+        // Integración de los nuevos paneles en el sistema UI
+        const extendedShowWindow = ui.showWindow;
+        ui.showWindow = function(id) {
+            extendedShowWindow.call(this, id);
+            if (id === 'marketing') marketing.renderMenu();
+            if (id === 'stats') stats.renderStats();
+            if (id === 'create-device') editor.renderComponentSelector();
+        };
+
+        // Modificamos el loop diario para incluir auditorías aleatorias
+        const originalClock = game.startClock;
+        game.startClock = function() {
+            setInterval(() => {
+                this.date.setDate(this.date.getDate() + 1);
+                
+                // Auditoría aleatoria cada 6 meses aprox
+                if (Math.random() < 0.005) this.checkAudits();
+                
+                if (this.date.getDate() === 1) this.processMonthlyFinances();
+                this.updateUI();
+            }, 3000);
+        };
+        /**
+         * SISTEMA DE PERSISTENCIA (SAVE/LOAD)
+         */
+        const storage = {
+            saveKey: "DevicesTycoon_SaveData",
+
+            saveGame() {
+                const data = {
+                    money: game.money,
+                    fans: game.fans,
+                    date: game.date.getTime(),
+                    employees: game.employees,
+                    cpus: game.inventory.cpus,
+                    tech: research.techTree,
+                    history: stats.history
+                };
+                localStorage.setItem(this.saveKey, JSON.stringify(data));
+                ui.notify("Progreso guardado automáticamente", "success");
+            },
+
+            loadGame() {
+                const saved = localStorage.getItem(this.saveKey);
+                if (!saved) return;
+                
+                try {
+                    const data = JSON.parse(saved);
+                    game.money = data.money;
+                    game.fans = data.fans;
+                    game.date = new Date(data.date);
+                    game.employees = data.employees || [];
+                    game.inventory.cpus = data.cpus || [];
+                    stats.history = data.history || [];
+                    
+                    // Sincronizar árbol tecnológico
+                    if(data.tech) {
+                        data.tech.forEach((savedTech, index) => {
+                            research.techTree[index].unlocked = savedTech.unlocked;
+                        });
+                    }
+                    
+                    game.updateUI();
+                    ui.notify("Partida cargada con éxito", "success");
+                } catch (e) {
+                    console.error("Error al cargar:", e);
+                }
+            }
+        };
+
+        /**
+         * EFECTOS VISUALES Y PARTÍCULAS (THREE.JS)
+         */
+        const effects = {
+            createSuccessBlast() {
+                const particleCount = 100;
+                const geometry = new THREE.BufferGeometry();
+                const positions = new Float32Array(particleCount * 3);
+                const colors = new Float32Array(particleCount * 3);
+
+                for (let i = 0; i < particleCount; i++) {
+                    positions[i * 3] = (Math.random() - 0.5) * 2;
+                    positions[i * 3 + 1] = (Math.random() - 0.5) * 2;
+                    positions[i * 3 + 2] = (Math.random() - 0.5) * 2;
+                    
+                    colors[i * 3] = 0; // R
+                    colors[i * 3 + 1] = 0.6; // G
+                    colors[i * 3 + 2] = 1; // B
+                }
+
+                geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+                const material = new THREE.PointsMaterial({
+                    size: 0.05,
+                    vertexColors: true,
+                    transparent: true,
+                    opacity: 1
+                });
+
+                const particles = new THREE.Points(geometry, material);
+                render.scene.add(particles);
+
+                // Animación de explosión con TWEEN
+                new TWEEN.Tween(particles.scale)
+                    .to({ x: 3, y: 3, z: 3 }, 1500)
+                    .easing(TWEEN.Easing.Exponential.Out)
+                    .start();
+
+                new TWEEN.Tween(material)
+                    .to({ opacity: 0 }, 1500)
+                    .onComplete(() => render.scene.remove(particles))
+                    .start();
+            }
+        };
+
+        /**
+         * EVENTOS DE MERCADO ALEATORIOS
+         */
+        game.triggerRandomEvent = function() {
+            const events = [
+                { title: "Escasez de Litio", desc: "El coste de producción sube un 30%", effect: () => { game.monthlyExpenses += 50000; }, color: "danger" },
+                { title: "Viral en TikTok", desc: "Ganancia masiva de fans", effect: () => { game.fans += 100000; }, color: "success" },
+                { title: "Nueva Regulación", desc: "Impuestos aumentan temporalmente", effect: () => { game.taxRate = 0.25; }, color: "warning" }
+            ];
+
+            const ev = events[Math.floor(Math.random() * events.length)];
+            ui.notify(`EVENTO: ${ev.title}<br>${ev.desc}`, ev.color);
+            ev.effect();
+        };
+
+        /**
+         * INICIALIZACIÓN DEFINITIVA
+         */
+        window.onload = () => {
+            // Iniciamos el motor 3D
+            render.init();
+            
+            // Cargamos partida si existe
+            storage.loadGame();
+            
+            // Configuramos los controles del editor
+            setupSliders();
+            
+            // Iniciamos el ciclo de vida del juego
+            game.init();
+            
+            // Guardado automático cada minuto
+            setInterval(() => storage.saveGame(), 60000);
+            
+            // Eventos aleatorios cada 5 minutos
+            setInterval(() => game.triggerRandomEvent(), 300000);
+
+            // Primera visualización
+            ui.updateDevicePreview();
+            
+            console.log("%c DEVICES TYCOON ULTIMATE ENGINE READY ", "background: #00a2ff; color: white; font-weight: bold;");
+        };
+
+        // Redefinición de launch para incluir efectos
+        const originalLaunch = game.launchProduction;
+        game.launchProduction = function() {
+            originalLaunch.call(this);
+            effects.createSuccessBlast();
+        };
     </script>
 </body>
 </html>
