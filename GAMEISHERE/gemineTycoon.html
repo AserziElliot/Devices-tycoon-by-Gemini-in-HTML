@@ -2,212 +2,273 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tech Empire Tycoon</title>
+    <title>Devices Tycoon Clone - Pro Version</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         :root {
-            --primary: #2c3e50;
-            --accent: #3498db;
-            --success: #27ae60;
-            --light: #ecf0f1;
+            --ui-blue: #0078ff;
+            --bg-dark: #0a0a12;
+            --panel-bg: rgba(15, 25, 45, 0.85);
+            --accent: #00f2ff;
         }
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            background: #1a1a2e;
-            color: white;
-            overflow: hidden;
+        body, html { 
+            margin: 0; padding: 0; width: 100%; height: 100%; 
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark); color: white; overflow: hidden;
         }
 
-        /* --- UI Superior --- */
+        /* --- BARRA SUPERIOR (Stats) --- */
         #top-bar {
-            display: flex;
-            justify-content: space-around;
-            background: rgba(0, 0, 0, 0.8);
-            padding: 10px;
-            border-bottom: 2px solid var(--accent);
+            position: absolute; top: 0; width: 100%; height: 50px;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent);
+            display: flex; align-items: center; justify-content: space-around;
+            z-index: 10; border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .stat-box { display: flex; align-items: center; gap: 8px; font-weight: bold; font-size: 18px; }
+        .stat-box span { color: var(--accent); }
+
+        /* --- LIENZO 3D --- */
+        #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+
+        /* --- PANEL DE DISEÑO (Blueprint) --- */
+        #design-panel {
+            position: absolute; right: 20px; top: 60px; bottom: 80px;
+            width: 350px; background: var(--panel-bg);
+            border-radius: 12px; border: 2px solid var(--ui-blue);
+            backdrop-filter: blur(10px); padding: 20px; z-index: 5;
+            display: none; flex-direction: column; gap: 15px;
         }
 
-        .stat { font-weight: bold; font-size: 1.2rem; }
-
-        /* --- Área de Juego (Oficina) --- */
-        #game-world {
-            height: 70vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background: linear-gradient(45deg, #2c3e50, #000000);
-            position: relative;
+        .control-group { display: flex; flex-direction: column; gap: 5px; }
+        .control-group label { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #aaa; }
+        
+        input[type=range] {
+            -webkit-appearance: none; width: 100%; background: transparent;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 4px; background: #333; border-radius: 2px;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 18px; width: 18px; border-radius: 50%;
+            background: var(--accent); cursor: pointer; margin-top: -7px;
+            box-shadow: 0 0 10px var(--accent);
         }
 
-        #office-view {
-            width: 400px;
-            height: 250px;
-            background: #34495e;
-            border: 4px solid #bdc3c7;
-            border-radius: 10px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        /* --- MENÚ INFERIOR --- */
+        #bottom-nav {
+            position: absolute; bottom: 0; width: 100%; height: 70px;
+            background: rgba(0,0,0,0.8); display: flex; justify-content: center;
+            align-items: center; gap: 30px; z-index: 10;
         }
-
-        /* --- Menú de Creación --- */
-        #creation-menu {
-            display: none;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: var(--primary);
-            padding: 30px;
-            border-radius: 15px;
-            border: 2px solid var(--accent);
-            width: 350px;
+        .nav-btn {
+            width: 50px; height: 50px; border-radius: 8px;
+            background: rgba(255,255,255,0.1); cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: 0.3s; font-size: 24px;
         }
+        .nav-btn:hover { background: var(--ui-blue); transform: translateY(-5px); }
+        .nav-btn.active { border-bottom: 3px solid var(--accent); background: rgba(0, 120, 255, 0.4); }
 
-        input[type="range"] { width: 100%; margin: 10px 0; }
-        button {
-            background: var(--success);
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            cursor: pointer;
-            border-radius: 5px;
-            width: 100%;
-            margin-top: 10px;
+        /* --- BOTÓN LANZAR --- */
+        .launch-btn {
+            margin-top: auto; padding: 15px; border: none; border-radius: 8px;
+            background: #27ae60; color: white; font-weight: bold;
+            font-size: 16px; cursor: pointer; transition: 0.3s;
         }
+        .launch-btn:hover { background: #2ecc71; box-shadow: 0 0 20px rgba(46, 204, 113, 0.4); }
 
-        /* --- Barra de Navegación --- */
-        #nav-bar {
-            position: fixed;
-            bottom: 0;
-            width: 100%;
-            display: flex;
-            background: #000;
-            height: 60px;
-        }
-
-        .nav-item {
-            flex: 1;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            cursor: pointer;
-            border-top: 1px solid #333;
-        }
-
-        .nav-item:hover { background: var(--accent); }
-
-        #log {
-            position: absolute;
-            bottom: 70px;
-            right: 20px;
-            background: rgba(0,0,0,0.7);
-            padding: 10px;
-            font-size: 0.8rem;
-            max-width: 200px;
+        /* --- NOTIFICACIONES --- */
+        #news-feed {
+            position: absolute; left: 20px; bottom: 90px;
+            width: 250px; font-size: 14px; color: #eee;
+            text-shadow: 1px 1px 2px black; z-index: 5;
         }
     </style>
 </head>
 <body>
 
     <div id="top-bar">
-        <div class="stat">💰 $<span id="money">10000</span></div>
-        <div class="stat">🎓 <span id="fans">0</span> Fans</div>
-        <div class="stat">📅 <span id="date">04.03.2026</span></div>
+        <div class="stat-box">💰 <span id="ui-money">18,000,000</span></div>
+        <div class="stat-box">🎓 <span id="ui-fans">50,000</span></div>
+        <div class="stat-box">📅 <span id="ui-date">16.01.2016</span></div>
+        <div class="stat-box">🏢 <span>Roastery Games</span></div>
     </div>
 
-    <div id="game-world">
-        <div id="office-view">
-            <h3>Tu Oficina</h3>
-            <p>CEO: En línea</p>
-            <small>Haz clic en "Crear" para empezar</small>
+    <div id="canvas-container"></div>
+
+    <div id="news-feed">Bienvenido CEO. Es hora de crear tu primer smartphone.</div>
+
+    <div id="design-panel">
+        <h2 style="margin:0; color: var(--accent);">SMARTPHONE DESIGN</h2>
+        <hr style="border: 0; border-top: 1px solid #333; margin: 10px 0;">
+        
+        <div class="control-group">
+            <label>Width (<span id="val-w">1.0</span>)</label>
+            <input type="range" id="slider-w" min="0.5" max="2" step="0.1" value="1">
+        </div>
+        <div class="control-group">
+            <label>Height (<span id="val-h">1.8</span>)</label>
+            <input type="range" id="slider-h" min="1" max="3" step="0.1" value="1.8">
+        </div>
+        <div class="control-group">
+            <label>Thickness (<span id="val-d">0.1</span>)</label>
+            <input type="range" id="slider-d" min="0.05" max="0.3" step="0.01" value="0.1">
+        </div>
+        <div class="control-group">
+            <label>Corner Radius (<span id="val-r">0.1</span>)</label>
+            <input type="range" id="slider-r" min="0" max="0.3" step="0.05" value="0.1">
+        </div>
+        <div class="control-group">
+            <label>Color de Chasis</label>
+            <input type="color" id="color-picker" value="#333333" style="width:100%; height:40px; border:none; background:none;">
         </div>
 
-        <div id="creation-menu">
-            <h3>Diseñar Smartphone</h3>
-            <label>Grosor: <span id="v1">5</span></label>
-            <input type="range" id="depth" min="1" max="10" value="5">
-            
-            <label>Tamaño Pantalla: <span id="v2">6</span>"</label>
-            <input type="range" id="size" min="4" max="7" value="6">
-            
-            <label>Potencia Chip: <span id="v3">1</span></label>
-            <input type="range" id="cpu" min="1" max="10" value="1">
-
-            <p>Costo: $<span id="cost">5000</span></p>
-            <button onclick="launchDevice()">Lanzar al Mercado</button>
-            <button style="background:#c0392b" onclick="toggleMenu()">Cancelar</button>
+        <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 5px;">
+            <p style="margin:0; font-size:12px;">Costo estimado:</p>
+            <h3 style="margin:5px 0; color: #f1c40f;">$ <span id="ui-cost">450</span></h3>
         </div>
+
+        <button class="launch-btn" onclick="launchProduct()">LANZAR DISPOSITIVO</button>
     </div>
 
-    <div id="log">Bienvenido, CEO.</div>
-
-    <div id="nav-bar">
-        <div class="nav-item" onclick="toggleMenu()">📱 Crear</div>
-        <div class="nav-item">👥 Personal</div>
-        <div class="nav-item">📊 Stats</div>
-        <div class="nav-item">🛒 Tienda</div>
+    <div id="bottom-nav">
+        <div class="nav-btn" onclick="toggleView('office')">🏠</div>
+        <div class="nav-btn active" onclick="toggleView('design')">📱</div>
+        <div class="nav-btn" onclick="toggleView('staff')">👥</div>
+        <div class="nav-btn" onclick="toggleView('stats')">📊</div>
+        <div class="nav-btn" onclick="toggleView('market')">🛒</div>
     </div>
-
     <script>
-        let money = 10000;
-        let fans = 0;
-        const log = document.getElementById('log');
+    // --- VARIABLES DE ESTADO ---
+    let money = 18000000;
+    let fans = 50000;
+    let scene, camera, renderer, phone, screen;
+    let isDesignMode = true;
 
-        // Actualizar valores en tiempo real
-        const inputs = document.querySelectorAll('input');
-        inputs.forEach(input => {
-            input.addEventListener('input', () => {
-                document.getElementById('v1').innerText = document.getElementById('depth').value;
-                document.getElementById('v2').innerText = document.getElementById('size').value;
-                document.getElementById('v3').innerText = document.getElementById('cpu').value;
-                
-                // Calcular costo dinámico
-                let cost = (document.getElementById('size').value * 500) + (document.getElementById('cpu').value * 1000);
-                document.getElementById('cost').innerText = cost;
-            });
-        });
+    // --- INICIALIZACIÓN 3D ---
+    function init3D() {
+        scene = new THREE.Scene();
+        // Fondo estilo blueprint (cuadrícula)
+        scene.background = new THREE.Color(0x0a1525);
+        
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
 
-        function toggleMenu() {
-            const menu = document.getElementById('creation-menu');
-            menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+        // Iluminación
+        const light = new THREE.DirectionalLight(0xffffff, 1);
+        light.position.set(5, 5, 5).normalize();
+        scene.add(light);
+        scene.add(new THREE.AmbientLight(0x404040, 2));
+
+        // Creación del Móvil (Cuerpo)
+        const geometry = new THREE.BoxGeometry(1, 1.8, 0.1);
+        const material = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.2 });
+        phone = new THREE.Mesh(geometry, material);
+        scene.add(phone);
+
+        // Pantalla
+        const screenGeo = new THREE.PlaneGeometry(0.95, 1.7);
+        const screenMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+        screen = new THREE.Mesh(screenGeo, screenMat);
+        screen.position.z = 0.051; // Justo en frente
+        phone.add(screen);
+
+        camera.position.z = 3;
+        animate();
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+        if(phone) {
+            phone.rotation.y += 0.01; // Rotación lenta para mostrarlo
         }
+        renderer.render(scene, camera);
+    }
 
-        function launchDevice() {
-            const cost = parseInt(document.getElementById('cost').innerText);
+    // --- LÓGICA DE UI ---
+    function toggleView(view) {
+        const panel = document.getElementById('design-panel');
+        const btns = document.querySelectorAll('.nav-btn');
+        
+        btns.forEach(b => b.classList.remove('active'));
+        
+        if(view === 'design') {
+            panel.style.display = 'flex';
+            isDesignMode = true;
+            document.getElementById('news-feed').innerText = "Modo Diseño: Ajusta las dimensiones del terminal.";
+        } else {
+            panel.style.display = 'none';
+            isDesignMode = false;
+            document.getElementById('news-feed').innerText = `Cambiando a vista: ${view}`;
+        }
+    }
+
+    // --- ACTUALIZACIÓN DINÁMICA DEL MODELO ---
+    const sliders = ['w', 'h', 'd'];
+    sliders.forEach(s => {
+        document.getElementById(`slider-${s}`).addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            document.getElementById(`val-${s}`).innerText = val;
             
-            if (money >= cost) {
-                money -= cost;
-                updateUI();
-                toggleMenu();
-                
-                log.innerText = "Lanzando producto... Calculando ventas...";
-                
-                // Simulación de ventas tras 2 segundos
-                setTimeout(() => {
-                    const quality = (parseInt(document.getElementById('cpu').value) + parseInt(document.getElementById('size').value)) / 2;
-                    const profit = Math.floor(cost * (quality / 2));
-                    const newFans = Math.floor(quality * 10);
-                    
-                    money += profit;
-                    fans += newFans;
-                    
-                    updateUI();
-                    log.innerText = `¡Éxito! Ganaste $${profit} y ${newFans} fans.`;
-                }, 2000);
-            } else {
-                alert("No tienes suficiente dinero.");
-            }
-        }
+            if(s === 'w') phone.scale.x = val;
+            if(s === 'h') phone.scale.y = val;
+            if(s === 'd') phone.scale.z = val * 5; // Multiplicador para que se note
 
-        function updateUI() {
-            document.getElementById('money').innerText = money;
-            document.getElementById('fans').innerText = fans;
+            updateCost();
+        });
+    });
+
+    document.getElementById('color-picker').addEventListener('input', (e) => {
+        phone.material.color.set(e.target.value);
+    });
+
+    function updateCost() {
+        const w = parseFloat(document.getElementById('slider-w').value);
+        const h = parseFloat(document.getElementById('slider-h').value);
+        const d = parseFloat(document.getElementById('slider-d').value);
+        const cost = Math.floor((w * h * d) * 25000);
+        document.getElementById('ui-cost').innerText = cost.toLocaleString();
+    }
+
+    function launchProduct() {
+        const cost = parseInt(document.getElementById('ui-cost').innerText.replace(/,/g, ''));
+        if(money >= cost) {
+            money -= cost;
+            document.getElementById('ui-money').innerText = money.toLocaleString();
+            document.getElementById('news-feed').innerText = "¡Lanzamiento exitoso! Las ventas están subiendo...";
+            
+            // Animación de éxito
+            phone.rotation.x = 0;
+            phone.rotation.z = 0;
+            
+            setTimeout(() => {
+                const profit = Math.floor(cost * (1.2 + Math.random()));
+                money += profit;
+                fans += Math.floor(profit / 100);
+                document.getElementById('ui-money').innerText = money.toLocaleString();
+                document.getElementById('ui-fans').innerText = fans.toLocaleString();
+                document.getElementById('news-feed').innerText = `Balance final: +$${profit.toLocaleString()}`;
+            }, 3000);
+        } else {
+            alert("Fondos insuficientes.");
         }
-    </script>
+    }
+
+    // Inicializar al cargar
+    window.onload = () => {
+        init3D();
+        toggleView('design');
+    };
+
+    // Ajuste de ventana
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+</script>
 </body>
 </html>
