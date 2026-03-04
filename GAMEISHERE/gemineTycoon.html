@@ -2,273 +2,530 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Devices Tycoon Clone - Pro Version</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Devices Tycoon Pro - Engine</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
+
         :root {
-            --ui-blue: #0078ff;
-            --bg-dark: #0a0a12;
-            --panel-bg: rgba(15, 25, 45, 0.85);
-            --accent: #00f2ff;
+            --ui-blue: #0084ff;
+            --ui-bg: rgba(10, 20, 35, 0.9);
+            --accent: #00f7ff;
+            --danger: #ff4b4b;
+            --success: #00e676;
+            --panel-border: 1px solid rgba(0, 132, 255, 0.3);
         }
 
-        body, html { 
-            margin: 0; padding: 0; width: 100%; height: 100%; 
-            font-family: 'Segoe UI', Roboto, sans-serif;
-            background: var(--bg-dark); color: white; overflow: hidden;
+        * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+
+        body {
+            background-color: #050a10;
+            color: white;
+            font-family: 'Rajdhani', sans-serif;
+            overflow: hidden;
+            height: 100vh;
         }
 
-        /* --- BARRA SUPERIOR (Stats) --- */
+        /* --- INTERFAZ SUPERIOR (STATS) --- */
         #top-bar {
-            position: absolute; top: 0; width: 100%; height: 50px;
-            background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent);
-            display: flex; align-items: center; justify-content: space-around;
-            z-index: 10; border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-        .stat-box { display: flex; align-items: center; gap: 8px; font-weight: bold; font-size: 18px; }
-        .stat-box span { color: var(--accent); }
-
-        /* --- LIENZO 3D --- */
-        #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
-
-        /* --- PANEL DE DISEÑO (Blueprint) --- */
-        #design-panel {
-            position: absolute; right: 20px; top: 60px; bottom: 80px;
-            width: 350px; background: var(--panel-bg);
-            border-radius: 12px; border: 2px solid var(--ui-blue);
-            backdrop-filter: blur(10px); padding: 20px; z-index: 5;
-            display: none; flex-direction: column; gap: 15px;
+            position: absolute; top: 0; width: 100%; height: 45px;
+            background: linear-gradient(to bottom, #162a44, #0a1423);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 20px; z-index: 100; border-bottom: 2px solid var(--ui-blue);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
         }
 
-        .control-group { display: flex; flex-direction: column; gap: 5px; }
-        .control-group label { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #aaa; }
-        
+        .stat-group { display: flex; align-items: center; gap: 20px; }
+        .stat-item {
+            display: flex; align-items: center; gap: 8px;
+            background: rgba(255,255,255,0.05);
+            padding: 4px 12px; border-radius: 4px;
+            border-left: 2px solid var(--accent);
+        }
+        .stat-item span { font-family: 'Orbitron', sans-serif; font-size: 14px; color: var(--accent); }
+        .stat-label { font-size: 12px; color: #aaa; text-transform: uppercase; }
+
+        /* --- MODO DISEÑO (BLUEPRINT) --- */
+        #blueprint-grid {
+            position: absolute; width: 100%; height: 100%;
+            background-image: 
+                linear-gradient(rgba(0, 132, 255, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 132, 255, 0.1) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none; opacity: 0.5; z-index: 0;
+        }
+
+        /* --- PANELES LATERALES --- */
+        .side-panel {
+            position: absolute; right: 20px; top: 60px; bottom: 90px;
+            width: 320px; background: var(--ui-bg);
+            border: var(--panel-border); border-radius: 8px;
+            backdrop-filter: blur(10px); z-index: 50;
+            display: flex; flex-direction: column; padding: 15px;
+            box-shadow: -10px 0 30px rgba(0,0,0,0.5);
+        }
+
+        .panel-header {
+            font-family: 'Orbitron', sans-serif; font-size: 18px;
+            color: var(--accent); margin-bottom: 15px;
+            display: flex; justify-content: space-between;
+        }
+
+        /* --- CONTROLES DE DISEÑO --- */
+        .control-row { margin-bottom: 15px; }
+        .control-row label { display: block; font-size: 12px; color: #888; margin-bottom: 5px; }
+        .value-display { float: right; color: white; font-weight: bold; }
+
         input[type=range] {
             -webkit-appearance: none; width: 100%; background: transparent;
         }
         input[type=range]::-webkit-slider-runnable-track {
-            width: 100%; height: 4px; background: #333; border-radius: 2px;
+            width: 100%; height: 6px; background: #1a3a5a; border-radius: 3px;
         }
         input[type=range]::-webkit-slider-thumb {
             -webkit-appearance: none; height: 18px; width: 18px; border-radius: 50%;
-            background: var(--accent); cursor: pointer; margin-top: -7px;
+            background: var(--accent); cursor: pointer; margin-top: -6px;
             box-shadow: 0 0 10px var(--accent);
         }
 
-        /* --- MENÚ INFERIOR --- */
+        /* --- INTERFAZ DE EMPLEADOS (CV) --- */
+        #employee-modal {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 500px; background: #e0e0e0; color: #333;
+            border-radius: 4px; padding: 20px; z-index: 200; display: none;
+            box-shadow: 0 0 100px rgba(0,0,0,0.8);
+        }
+
+        .cv-card {
+            background: white; border: 1px solid #ccc; padding: 20px;
+            display: grid; grid-template-columns: 120px 1fr; gap: 20px;
+        }
+        .cv-photo { width: 120px; height: 120px; background: #ddd; object-fit: cover; }
+        .cv-info h2 { font-family: 'Times New Roman', serif; border-bottom: 1px solid #333; }
+        .cv-stat { display: flex; justify-content: space-between; margin-top: 10px; font-size: 14px; }
+
+        /* --- BOTONES --- */
+        .btn-action {
+            background: var(--ui-blue); color: white; border: none;
+            padding: 12px; border-radius: 4px; cursor: pointer;
+            font-family: 'Orbitron', sans-serif; font-weight: bold;
+            transition: 0.3s; margin-top: 10px;
+        }
+        .btn-action:hover { background: var(--accent); color: #000; box-shadow: 0 0 15px var(--accent); }
+        .btn-hire { background: #27ae60; width: 100%; margin-top: 20px; }
+
+        /* --- BARRA INFERIOR (NAVEGACIÓN) --- */
         #bottom-nav {
             position: absolute; bottom: 0; width: 100%; height: 70px;
-            background: rgba(0,0,0,0.8); display: flex; justify-content: center;
-            align-items: center; gap: 30px; z-index: 10;
+            background: #0a1423; border-top: 2px solid var(--ui-blue);
+            display: flex; justify-content: center; gap: 10px; z-index: 100;
         }
-        .nav-btn {
-            width: 50px; height: 50px; border-radius: 8px;
-            background: rgba(255,255,255,0.1); cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-            transition: 0.3s; font-size: 24px;
-        }
-        .nav-btn:hover { background: var(--ui-blue); transform: translateY(-5px); }
-        .nav-btn.active { border-bottom: 3px solid var(--accent); background: rgba(0, 120, 255, 0.4); }
 
-        /* --- BOTÓN LANZAR --- */
-        .launch-btn {
-            margin-top: auto; padding: 15px; border: none; border-radius: 8px;
-            background: #27ae60; color: white; font-weight: bold;
-            font-size: 16px; cursor: pointer; transition: 0.3s;
+        .nav-item {
+            width: 80px; display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            cursor: pointer; transition: 0.2s; color: #5a7b9c;
         }
-        .launch-btn:hover { background: #2ecc71; box-shadow: 0 0 20px rgba(46, 204, 113, 0.4); }
+        .nav-item:hover { color: var(--accent); background: rgba(0, 132, 255, 0.1); }
+        .nav-item.active { color: white; border-top: 3px solid var(--accent); background: rgba(0, 132, 255, 0.2); }
+        .nav-icon { font-size: 24px; margin-bottom: 4px; }
+        .nav-label { font-size: 10px; text-transform: uppercase; font-weight: bold; }
 
         /* --- NOTIFICACIONES --- */
-        #news-feed {
+        #log-container {
             position: absolute; left: 20px; bottom: 90px;
-            width: 250px; font-size: 14px; color: #eee;
-            text-shadow: 1px 1px 2px black; z-index: 5;
+            width: 280px; max-height: 150px; overflow: hidden;
+            display: flex; flex-direction: column-reverse; gap: 5px;
         }
+        .log-entry {
+            background: rgba(0,0,0,0.7); padding: 8px 12px;
+            border-left: 3px solid var(--ui-blue); font-size: 13px;
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn { from { transform: translateX(-100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        /* --- CANVAS 3D --- */
+        #render-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
     </style>
 </head>
 <body>
 
     <div id="top-bar">
-        <div class="stat-box">💰 <span id="ui-money">18,000,000</span></div>
-        <div class="stat-box">🎓 <span id="ui-fans">50,000</span></div>
-        <div class="stat-box">📅 <span id="ui-date">16.01.2016</span></div>
-        <div class="stat-box">🏢 <span>Roastery Games</span></div>
+        <div class="stat-group">
+            <div class="stat-item">
+                <span class="stat-label">Capital:</span>
+                <span id="txt-money">$18,000,000</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Fans:</span>
+                <span id="txt-fans">50,000</span>
+            </div>
+        </div>
+        <div class="stat-group">
+            <div class="stat-item">
+                <span id="txt-date">16.01.2016</span>
+            </div>
+            <div class="stat-item" style="border-left-color: gold;">
+                <span style="color: gold;">ROASTERY GAMES</span>
+            </div>
+        </div>
     </div>
 
-    <div id="canvas-container"></div>
+    <div id="blueprint-grid"></div>
+    <div id="render-canvas"></div>
 
-    <div id="news-feed">Bienvenido CEO. Es hora de crear tu primer smartphone.</div>
-
-    <div id="design-panel">
-        <h2 style="margin:0; color: var(--accent);">SMARTPHONE DESIGN</h2>
-        <hr style="border: 0; border-top: 1px solid #333; margin: 10px 0;">
+    <div id="panel-design" class="side-panel">
+        <div class="panel-header">
+            DISEÑO PROTOTIPO
+            <span style="font-size: 10px; color: #555;">v1.0.4</span>
+        </div>
         
-        <div class="control-group">
-            <label>Width (<span id="val-w">1.0</span>)</label>
-            <input type="range" id="slider-w" min="0.5" max="2" step="0.1" value="1">
-        </div>
-        <div class="control-group">
-            <label>Height (<span id="val-h">1.8</span>)</label>
-            <input type="range" id="slider-h" min="1" max="3" step="0.1" value="1.8">
-        </div>
-        <div class="control-group">
-            <label>Thickness (<span id="val-d">0.1</span>)</label>
-            <input type="range" id="slider-d" min="0.05" max="0.3" step="0.01" value="0.1">
-        </div>
-        <div class="control-group">
-            <label>Corner Radius (<span id="val-r">0.1</span>)</label>
-            <input type="range" id="slider-r" min="0" max="0.3" step="0.05" value="0.1">
-        </div>
-        <div class="control-group">
-            <label>Color de Chasis</label>
-            <input type="color" id="color-picker" value="#333333" style="width:100%; height:40px; border:none; background:none;">
+        <div class="control-row">
+            <label>ANCHO DISPOSITIVO <span class="value-display" id="val-w">1.0</span></label>
+            <input type="range" id="input-w" min="0.5" max="2.0" step="0.05" value="1.0">
         </div>
 
-        <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 5px;">
-            <p style="margin:0; font-size:12px;">Costo estimado:</p>
-            <h3 style="margin:5px 0; color: #f1c40f;">$ <span id="ui-cost">450</span></h3>
+        <div class="control-row">
+            <label>ALTO DISPOSITIVO <span class="value-display" id="val-h">1.8</span></label>
+            <input type="range" id="input-h" min="1.0" max="3.0" step="0.05" value="1.8">
         </div>
 
-        <button class="launch-btn" onclick="launchProduct()">LANZAR DISPOSITIVO</button>
+        <div class="control-row">
+            <label>GROSOR <span class="value-display" id="val-d">0.1</span></label>
+            <input type="range" id="input-d" min="0.03" max="0.25" step="0.01" value="0.1">
+        </div>
+
+        <div class="control-row">
+            <label>RADIO DE ESQUINAS <span class="value-display" id="val-r">0.15</span></label>
+            <input type="range" id="input-r" min="0.0" max="0.4" step="0.02" value="0.15">
+        </div>
+
+        <div class="control-row" style="margin-top: 10px;">
+            <label>COLOR DEL CHASIS</label>
+            <input type="color" id="input-color" value="#1a1a1a" style="width: 100%; height: 35px; border: none; cursor: pointer; background: none;">
+        </div>
+
+        <div style="flex-grow: 1;"></div>
+
+        <div class="stat-item" style="margin-bottom: 10px; justify-content: space-between;">
+            <span class="stat-label">COSTE PROD:</span>
+            <span id="txt-cost" style="color: #ffcc00;">$450.00</span>
+        </div>
+
+        <button class="btn-action" onclick="app.launchProduct()">INICIAR PRODUCCIÓN</button>
     </div>
 
-    <div id="bottom-nav">
-        <div class="nav-btn" onclick="toggleView('office')">🏠</div>
-        <div class="nav-btn active" onclick="toggleView('design')">📱</div>
-        <div class="nav-btn" onclick="toggleView('staff')">👥</div>
-        <div class="nav-btn" onclick="toggleView('stats')">📊</div>
-        <div class="nav-btn" onclick="toggleView('market')">🛒</div>
+    <div id="employee-modal">
+        <div class="cv-card">
+            <img src="https://i.imgur.com/8Km9tLL.png" class="cv-photo" alt="CV Photo">
+            <div class="cv-info">
+                <h2>Amice Fields</h2>
+                <div class="cv-stat"><strong>País:</strong> 🇸🇪 Suecia</div>
+                <div class="cv-stat"><strong>Edad:</strong> 30 años</div>
+                <div class="cv-stat"><strong>Exp:</strong> 10 años</div>
+                <div class="cv-stat"><strong>Rating:</strong> <span style="color: var(--ui-blue)">16/100</span></div>
+                <div class="cv-stat"><strong>Salario:</strong> <span style="color: #27ae60">$4,320 / mes</span></div>
+            </div>
+        </div>
+        <button class="btn-action btn-hire" onclick="app.hireEmployee()">CONTRATAR EMPLEADO</button>
+        <button class="btn-action" style="background: #777; width: 100%;" onclick="app.closeModal()">CERRAR</button>
     </div>
+
+    <div id="log-container"></div>
+
+    <nav id="bottom-nav">
+        <div class="nav-item active" onclick="app.setMode('office')">
+            <span class="nav-icon">🏢</span>
+            <span class="nav-label">OFICINA</span>
+        </div>
+        <div class="nav-item" onclick="app.setMode('design')">
+            <span class="nav-icon">📱</span>
+            <span class="nav-label">DISEÑO</span>
+        </div>
+        <div class="nav-item" onclick="app.openEmployeeMenu()">
+            <span class="nav-icon">👥</span>
+            <span class="nav-label">PERSONAL</span>
+        </div>
+        <div class="nav-item" onclick="app.setMode('stats')">
+            <span class="nav-icon">📊</span>
+            <span class="nav-label">STATS</span>
+        </div>
+        <div class="nav-item" onclick="app.setMode('market')">
+            <span class="nav-icon">🛒</span>
+            <span class="nav-label">TIENDA</span>
+        </div>
+    </nav>
+
     <script>
-    // --- VARIABLES DE ESTADO ---
-    let money = 18000000;
-    let fans = 50000;
-    let scene, camera, renderer, phone, screen;
-    let isDesignMode = true;
+        // --- MOTOR PRINCIPAL DEL JUEGO ---
+        const app = {
+            money: 18000000,
+            fans: 50000,
+            date: new Date(2016, 0, 16),
+            scene: null,
+            camera: null,
+            renderer: null,
+            phone: null,
+            phoneMaterial: null,
+            screen: null,
+            mode: 'design',
+            employees: [],
 
-    // --- INICIALIZACIÓN 3D ---
-    function init3D() {
-        scene = new THREE.Scene();
-        // Fondo estilo blueprint (cuadrícula)
-        scene.background = new THREE.Color(0x0a1525);
-        
-        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.getElementById('canvas-container').appendChild(renderer.domElement);
+            init() {
+                this.init3D();
+                this.setupEventListeners();
+                this.gameLoop();
+                this.updateUI();
+                this.log("Sistemas iniciados. Listo para diseñar.");
+            },
 
-        // Iluminación
-        const light = new THREE.DirectionalLight(0xffffff, 1);
-        light.position.set(5, 5, 5).normalize();
-        scene.add(light);
-        scene.add(new THREE.AmbientLight(0x404040, 2));
+            init3D() {
+                // Configuración básica de la escena
+                this.scene = new THREE.Scene();
+                this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+                this.camera.position.set(0, 0, 5);
 
-        // Creación del Móvil (Cuerpo)
-        const geometry = new THREE.BoxGeometry(1, 1.8, 0.1);
-        const material = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.2 });
-        phone = new THREE.Mesh(geometry, material);
-        scene.add(phone);
+                this.renderer = new THREE.WebGLRenderer({ 
+                    antialias: true, 
+                    alpha: true 
+                });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.setPixelRatio(window.devicePixelRatio);
+                document.getElementById('render-canvas').appendChild(this.renderer.domElement);
 
-        // Pantalla
-        const screenGeo = new THREE.PlaneGeometry(0.95, 1.7);
-        const screenMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
-        screen = new THREE.Mesh(screenGeo, screenMat);
-        screen.position.z = 0.051; // Justo en frente
-        phone.add(screen);
+                // Luces para resaltar el material del dispositivo
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+                this.scene.add(ambientLight);
 
-        camera.position.z = 3;
-        animate();
-    }
+                const pointLight = new THREE.PointLight(0x0084ff, 1.5);
+                pointLight.position.set(5, 5, 5);
+                this.scene.add(pointLight);
 
-    function animate() {
-        requestAnimationFrame(animate);
-        if(phone) {
-            phone.rotation.y += 0.01; // Rotación lenta para mostrarlo
-        }
-        renderer.render(scene, camera);
-    }
+                const topLight = new THREE.DirectionalLight(0xffffff, 1);
+                topLight.position.set(0, 10, 0);
+                this.scene.add(topLight);
 
-    // --- LÓGICA DE UI ---
-    function toggleView(view) {
-        const panel = document.getElementById('design-panel');
-        const btns = document.querySelectorAll('.nav-btn');
-        
-        btns.forEach(b => b.classList.remove('active'));
-        
-        if(view === 'design') {
-            panel.style.display = 'flex';
-            isDesignMode = true;
-            document.getElementById('news-feed').innerText = "Modo Diseño: Ajusta las dimensiones del terminal.";
-        } else {
-            panel.style.display = 'none';
-            isDesignMode = false;
-            document.getElementById('news-feed').innerText = `Cambiando a vista: ${view}`;
-        }
-    }
+                this.createPhone();
+                this.animate();
+            },
 
-    // --- ACTUALIZACIÓN DINÁMICA DEL MODELO ---
-    const sliders = ['w', 'h', 'd'];
-    sliders.forEach(s => {
-        document.getElementById(`slider-${s}`).addEventListener('input', (e) => {
-            const val = parseFloat(e.target.value);
-            document.getElementById(`val-${s}`).innerText = val;
-            
-            if(s === 'w') phone.scale.x = val;
-            if(s === 'h') phone.scale.y = val;
-            if(s === 'd') phone.scale.z = val * 5; // Multiplicador para que se note
+            // Crea la geometría del teléfono con esquinas redondeadas dinámicas
+            createPhone() {
+                if (this.phone) this.scene.remove(this.phone);
 
-            updateCost();
+                const w = parseFloat(document.getElementById('input-w').value);
+                const h = parseFloat(document.getElementById('input-h').value);
+                const d = parseFloat(document.getElementById('input-d').value);
+                const r = parseFloat(document.getElementById('input-r').value);
+
+                // Dibujamos la forma 2D para extrudirla (bordes redondeados)
+                const shape = new THREE.Shape();
+                shape.moveTo(-w/2 + r, -h/2);
+                shape.lineTo(w/2 - r, -h/2);
+                shape.absarc(w/2 - r, -h/2 + r, r, Math.PI * 1.5, 0, false);
+                shape.lineTo(w/2, h/2 - r);
+                shape.absarc(w/2 - r, h/2 - r, r, 0, Math.PI * 0.5, false);
+                shape.lineTo(-w/2 + r, h/2);
+                shape.absarc(-w/2 + r, h/2 - r, r, Math.PI * 0.5, Math.PI, false);
+                shape.lineTo(-w/2, -h/2 + r);
+                shape.absarc(-w/2 + r, -h/2 + r, r, Math.PI, Math.PI * 1.5, false);
+
+                const extrudeSettings = { depth: d, bevelEnabled: false };
+                const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+                geometry.center();
+
+                this.phoneMaterial = new THREE.MeshStandardMaterial({ 
+                    color: document.getElementById('input-color').value,
+                    roughness: 0.2,
+                    metalness: 0.8
+                });
+
+                this.phone = new THREE.Mesh(geometry, this.phoneMaterial);
+                
+                // Añadimos la pantalla (un plano negro ligeramente por delante)
+                const screenGeo = new THREE.PlaneGeometry(w * 0.92, h * 0.92);
+                const screenMat = new THREE.MeshBasicMaterial({ color: 0x050505 });
+                this.screen = new THREE.Mesh(screenGeo, screenMat);
+                this.screen.position.z = d/2 + 0.001;
+                
+                this.phone.add(this.screen);
+                this.scene.add(this.phone);
+            },
+
+            setupEventListeners() {
+                // Actualización en tiempo real de los sliders
+                const controls = ['w', 'h', 'd', 'r'];
+                controls.forEach(id => {
+                    document.getElementById(`input-${id}`).addEventListener('input', (e) => {
+                        document.getElementById(`val-${id}`).innerText = e.target.value;
+                        this.createPhone();
+                        this.calculateCost();
+                    });
+                });
+
+                document.getElementById('input-color').addEventListener('input', (e) => {
+                    this.phoneMaterial.color.set(e.target.value);
+                });
+
+                window.addEventListener('resize', () => {
+                    this.camera.aspect = window.innerWidth / window.innerHeight;
+                    this.camera.updateProjectionMatrix();
+                    this.renderer.setSize(window.innerWidth, window.innerHeight);
+                });
+            },
+
+            calculateCost() {
+                const w = parseFloat(document.getElementById('input-w').value);
+                const h = parseFloat(document.getElementById('input-h').value);
+                const d = parseFloat(document.getElementById('input-d').value);
+                // Lógica de coste: a mayor tamaño y menor grosor (miniaturización), más caro
+                const baseCost = 200;
+                const sizeFactor = (w * h * 50);
+                const techFactor = (0.3 / d) * 20;
+                const total = baseCost + sizeFactor + techFactor;
+                document.getElementById('txt-cost').innerText = `$${total.toFixed(2)}`;
+            },
+
+            setMode(newMode) {
+                this.mode = newMode;
+                const panel = document.getElementById('panel-design');
+                const navItems = document.querySelectorAll('.nav-item');
+                
+                navItems.forEach(item => item.classList.remove('active'));
+                
+                if (newMode === 'design') {
+                    panel.style.display = 'flex';
+                    navItems[1].classList.add('active');
+                    this.log("Modo diseño activado.");
+                } else {
+                    panel.style.display = 'none';
+                    if(newMode === 'office') navItems[0].classList.add('active');
+                    this.log(`Cambiando a vista de ${newMode}...`);
+                }
+            },
+
+            log(msg) {
+                const container = document.getElementById('log-container');
+                const entry = document.createElement('div');
+                entry.className = 'log-entry';
+                entry.innerText = `> ${msg}`;
+                container.prepend(entry);
+                if (container.children.length > 5) container.lastChild.remove();
+            },
+
+            updateUI() {
+                document.getElementById('txt-money').innerText = `$${this.money.toLocaleString()}`;
+                document.getElementById('txt-fans').innerText = this.fans.toLocaleString();
+                
+                const d = this.date;
+                const dateStr = `${d.getDate().toString().padStart(2,'0')}.${(d.getMonth()+1).toString().padStart(2,'0')}.${d.getFullYear()}`;
+                document.getElementById('txt-date').innerText = dateStr;
+            },
+
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                if (this.phone) {
+                    // Rotación suave para exhibición
+                    this.phone.rotation.y += 0.005;
+                    if (this.mode === 'design') {
+                        this.phone.rotation.x = THREE.MathUtils.lerp(this.phone.rotation.x, 0.2, 0.1);
+                    }
+                }
+                this.renderer.render(this.scene, this.camera);
+            },
+
+            gameLoop() {
+                setInterval(() => {
+                    // El tiempo avanza cada 2 segundos de vida real
+                    this.date.setDate(this.date.getDate() + 1);
+                    this.updateUI();
+                }, 2000);
+            },
+            // --- SISTEMA DE LANZAMIENTO Y VENTAS ---
+            launchProduct() {
+                const cost = parseFloat(document.getElementById('txt-cost').innerText.replace('$', ''));
+                
+                if (this.money < cost) {
+                    this.log("¡Fondos insuficientes para producción!");
+                    return;
+                }
+
+                this.money -= cost;
+                this.updateUI();
+                this.log("Producción iniciada... El dispositivo llegará pronto al mercado.");
+                this.setMode('office');
+
+                // Simulación de revisión y ventas
+                setTimeout(() => {
+                    const quality = this.calculateQuality();
+                    const salesVolume = Math.floor((quality * 100) + (this.fans * 0.1));
+                    const revenue = salesVolume * 600; // Precio de venta promedio
+                    
+                    this.money += revenue;
+                    this.fans += Math.floor(salesVolume * 0.05);
+                    
+                    this.log(`Review: ${quality}/10. Ventas: ${salesVolume.toLocaleString()} unidades.`);
+                    this.log(`Ingresos totales: +$${revenue.toLocaleString()}`);
+                    this.updateUI();
+                }, 3000);
+            },
+
+            calculateQuality() {
+                // Algoritmo de calidad basado en equilibrio de hardware
+                const w = parseFloat(document.getElementById('input-w').value);
+                const h = parseFloat(document.getElementById('input-h').value);
+                const d = parseFloat(document.getElementById('input-d').value);
+                
+                let score = 5;
+                if (d < 0.08) score += 2; // Bonus por delgadez (ingeniería)
+                if (w > 0.8 && w < 1.2) score += 1; // Ergonomía
+                
+                // Sumamos el bonus por empleados (si tienes equipo, la calidad sube)
+                score += (this.employees.length * 0.5);
+                
+                return Math.min(10, score).toFixed(1);
+            },
+
+            // --- GESTIÓN DE EMPLEADOS ---
+            openEmployeeMenu() {
+                const modal = document.getElementById('employee-modal');
+                modal.style.display = 'block';
+                this.log("Revisando currículums disponibles...");
+            },
+
+            closeModal() {
+                document.getElementById('employee-modal').style.display = 'none';
+            },
+
+            hireEmployee() {
+                const salary = 4320;
+                if (this.money >= salary * 3) { // Pedimos reserva para 3 meses
+                    this.employees.push({ name: "Amice Fields", salary: salary });
+                    this.money -= salary;
+                    this.updateUI();
+                    this.log("Empleado contratado: Amice Fields. La calidad de diseño aumentará.");
+                    this.closeModal();
+                } else {
+                    alert("No tienes capital suficiente para cubrir el salario inicial.");
+                }
+            },
+
+            // --- UTILIDADES ---
+            formatDate(date) {
+                return date.toLocaleDateString('es-ES', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric'
+                });
+            }
+        };
+
+        // --- INICIALIZACIÓN AL CARGAR ---
+        window.addEventListener('DOMContentLoaded', () => {
+            app.init();
+            app.calculateCost();
         });
-    });
-
-    document.getElementById('color-picker').addEventListener('input', (e) => {
-        phone.material.color.set(e.target.value);
-    });
-
-    function updateCost() {
-        const w = parseFloat(document.getElementById('slider-w').value);
-        const h = parseFloat(document.getElementById('slider-h').value);
-        const d = parseFloat(document.getElementById('slider-d').value);
-        const cost = Math.floor((w * h * d) * 25000);
-        document.getElementById('ui-cost').innerText = cost.toLocaleString();
-    }
-
-    function launchProduct() {
-        const cost = parseInt(document.getElementById('ui-cost').innerText.replace(/,/g, ''));
-        if(money >= cost) {
-            money -= cost;
-            document.getElementById('ui-money').innerText = money.toLocaleString();
-            document.getElementById('news-feed').innerText = "¡Lanzamiento exitoso! Las ventas están subiendo...";
-            
-            // Animación de éxito
-            phone.rotation.x = 0;
-            phone.rotation.z = 0;
-            
-            setTimeout(() => {
-                const profit = Math.floor(cost * (1.2 + Math.random()));
-                money += profit;
-                fans += Math.floor(profit / 100);
-                document.getElementById('ui-money').innerText = money.toLocaleString();
-                document.getElementById('ui-fans').innerText = fans.toLocaleString();
-                document.getElementById('news-feed').innerText = `Balance final: +$${profit.toLocaleString()}`;
-            }, 3000);
-        } else {
-            alert("Fondos insuficientes.");
-        }
-    }
-
-    // Inicializar al cargar
-    window.onload = () => {
-        init3D();
-        toggleView('design');
-    };
-
-    // Ajuste de ventana
-    window.addEventListener('resize', () => {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-    });
-</script>
+    </script>
 </body>
 </html>
